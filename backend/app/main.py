@@ -1,0 +1,88 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
+from app.database import engine, Base
+
+# Import models to create tables
+from app.models import (
+    User,
+    Interview,
+    Strategy,
+    Post,
+    SocialAccount,
+    UserSettings,
+)
+
+# Create FastAPI app
+app = FastAPI(
+    title="Marketing Content Creation Tool API",
+    description="AI-powered marketing automation tool with conversational interview system",
+    version="1.0.0",
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Create database tables
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables on startup and create default user"""
+    from uuid import UUID
+    from app.database import SessionLocal
+
+    Base.metadata.create_all(bind=engine)
+
+    # Create default user for development
+    db = SessionLocal()
+    try:
+        default_user_id = UUID("00000000-0000-0000-0000-000000000001")
+        existing_user = db.query(User).filter(User.id == default_user_id).first()
+
+        if not existing_user:
+            default_user = User(
+                id=default_user_id,
+                email="dev@example.com",
+                name="Development User",
+                hashed_password="not_a_real_password",
+            )
+            db.add(default_user)
+            db.commit()
+            print("Created default development user")
+    finally:
+        db.close()
+
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Marketing Content Creation Tool API",
+        "version": "1.0.0",
+        "status": "running",
+    }
+
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+
+# Import and include routers
+from app.routes import interview
+
+app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
+
+# TODO: Add remaining routers when created
+# from app.routes import strategy, content, analytics, settings
+# app.include_router(strategy.router, prefix="/api/strategy", tags=["strategy"])
+# app.include_router(content.router, prefix="/api/content", tags=["content"])
+# app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
+# app.include_router(settings.router, prefix="/api/settings", tags=["settings"])

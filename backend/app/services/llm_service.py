@@ -214,9 +214,35 @@ Respond in JSON format with the following structure:
         import json
 
         try:
-            return json.loads(response)
+            # Handle potential markdown code blocks
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0]
+
+            return json.loads(response.strip())
         except json.JSONDecodeError:
-            return {"error": "Failed to parse interview analysis", "raw_response": response}
+            # Return a default structure with the error
+            return {
+                "business_summary": "Analysis could not be fully processed. Please review the transcript.",
+                "target_audience": [],
+                "unique_value_proposition": "",
+                "business_goals": [],
+                "current_marketing": {
+                    "channels_used": [],
+                    "whats_working": "",
+                    "whats_not_working": ""
+                },
+                "brand_personality": {
+                    "voice": "",
+                    "values": [],
+                    "tone": ""
+                },
+                "recommended_platforms": [],
+                "content_pillars": [],
+                "parse_error": True,
+                "raw_response": response[:500] if response else ""
+            }
 
 
 # Singleton instance

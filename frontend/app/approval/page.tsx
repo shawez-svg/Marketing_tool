@@ -14,6 +14,9 @@ import {
   CheckCircle,
   Clock,
   Eye,
+  Image,
+  Link,
+  Sparkles,
 } from "lucide-react";
 
 type PostStatus = "draft" | "approved" | "scheduled" | "posted" | "rejected" | "failed";
@@ -45,6 +48,11 @@ export default function ApprovalPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  // Media URL modal for Instagram
+  const [mediaUrlPost, setMediaUrlPost] = useState<Post | null>(null);
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   useEffect(() => {
     loadPosts();
@@ -97,7 +105,76 @@ export default function ApprovalPage() {
     }
   };
 
-  const handlePostNow = async (post: Post) => {
+  const handleAddMediaUrl = async () => {
+    if (!mediaUrlPost || !mediaUrl) return;
+
+    try {
+      // Update the post with media URL
+      const updated = await contentApi.updatePost(mediaUrlPost.id, {
+        content_media_url: mediaUrl,
+      });
+      setPosts((prev) => prev.map((p) => (p.id === mediaUrlPost.id ? updated : p)));
+      setMediaUrlPost(null);
+      setMediaUrl("");
+      setPostingMessage({
+        type: "success",
+        message: "Media URL added! You can now post to Instagram.",
+      });
+      setTimeout(() => setPostingMessage(null), 3000);
+    } catch (err) {
+      console.error("Failed to add media URL:", err);
+      setPostingMessage({
+        type: "error",
+        message: "Failed to add media URL",
+      });
+    }
+  };
+
+  const handleGenerateAIImage = async () => {
+    if (!mediaUrlPost) return;
+
+    setGeneratingImage(true);
+    try {
+      const result = await contentApi.generateImageForPost(mediaUrlPost.id);
+
+      if (result.success && result.image_url) {
+        // Refresh post data
+        const updated = await contentApi.getPost(mediaUrlPost.id);
+        setPosts((prev) => prev.map((p) => (p.id === mediaUrlPost.id ? updated : p)));
+        setMediaUrlPost(null);
+        setMediaUrl("");
+        setPostingMessage({
+          type: "success",
+          message: "AI image generated! You can now post to Instagram.",
+        });
+        setTimeout(() => setPostingMessage(null), 5000);
+      } else {
+        setPostingMessage({
+          type: "error",
+          message: result.error || "Failed to generate image",
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to generate AI image:", err);
+      setPostingMessage({
+        type: "error",
+        message: err.response?.data?.detail || "Failed to generate AI image",
+      });
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  const handlePostNow = async (postParam: Post) => {
+    // Get the latest post data from state (in case media URL was just added)
+    const post = posts.find((p) => p.id === postParam.id) || postParam;
+
+    // Check if Instagram post needs media
+    if (post.platform.toLowerCase() === "instagram" && !post.content_media_url) {
+      setMediaUrlPost(post);
+      return;
+    }
+
     setPostingId(post.id);
     setPostingMessage(null);
 
@@ -385,6 +462,37 @@ export default function ApprovalPage() {
                     )}
                   </div>
 
+                  {/* Instagram Media Warning */}
+                  {post.platform.toLowerCase() === "instagram" && !post.content_media_url && (
+                    <div className="mb-3 flex items-center rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600 mr-2 flex-shrink-0" />
+                      <span className="text-sm text-amber-800">
+                        Instagram requires an image or video.{" "}
+                        <button
+                          onClick={() => setMediaUrlPost(post)}
+                          className="underline font-medium hover:text-amber-900"
+                        >
+                          Add media URL
+                        </button>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Media Preview */}
+                  {post.content_media_url && (
+                    <div className="mb-3 flex items-center text-sm text-gray-600">
+                      <Image className="h-4 w-4 mr-2" />
+                      <a
+                        href={post.content_media_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline truncate max-w-xs"
+                      >
+                        {post.content_media_url}
+                      </a>
+                    </div>
+                  )}
+
                   {/* Content Preview */}
                   <p className="mb-4 whitespace-pre-line text-gray-700">{post.content_text}</p>
 
@@ -579,6 +687,106 @@ export default function ApprovalPage() {
               <Eye className="h-5 w-5" />
               <span>View Analytics</span>
             </button>
+          </div>
+        )}
+
+        {/* Media URL Modal for Instagram */}
+        {mediaUrlPost && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+              <div className="flex items-center mb-4">
+                <Image className="h-6 w-6 text-pink-600 mr-2" />
+                <h3 className="text-lg font-semibold">Add Media for Instagram</h3>
+              </div>
+
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  <strong>Instagram requires an image or video</strong> for all posts.
+                  Choose one of the options below.
+                </p>
+              </div>
+
+              <p className="mb-4 text-sm text-gray-600 line-clamp-2 bg-gray-50 p-3 rounded">
+                {mediaUrlPost.content_text}
+              </p>
+
+              {/* Option 1: Generate AI Image */}
+              <div className="mb-4 p-4 border border-purple-200 rounded-lg bg-purple-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Sparkles className="h-5 w-5 text-purple-600 mr-2" />
+                    <div>
+                      <p className="font-medium text-purple-900">Generate AI Image</p>
+                      <p className="text-xs text-purple-700">Create an image using DALL-E based on your post content</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleGenerateAIImage}
+                    disabled={generatingImage}
+                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700 disabled:opacity-50 flex items-center"
+                  >
+                    {generatingImage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center my-4">
+                <div className="flex-1 border-t border-gray-200"></div>
+                <span className="px-3 text-sm text-gray-500">OR</span>
+                <div className="flex-1 border-t border-gray-200"></div>
+              </div>
+
+              {/* Option 2: Paste URL */}
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    <Link className="h-4 w-4 inline mr-1" />
+                    Paste Media URL
+                  </label>
+                  <input
+                    type="url"
+                    value={mediaUrl}
+                    onChange={(e) => setMediaUrl(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    disabled={generatingImage}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Supported formats: JPG, PNG, GIF, MP4, MOV. Must be publicly accessible.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setMediaUrlPost(null);
+                    setMediaUrl("");
+                  }}
+                  disabled={generatingImage}
+                  className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddMediaUrl}
+                  disabled={!mediaUrl || generatingImage}
+                  className="rounded-lg bg-pink-600 px-4 py-2 text-sm text-white hover:bg-pink-700 disabled:opacity-50"
+                >
+                  Use URL
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -105,8 +105,32 @@ export default function ContentPage() {
     setError(null);
 
     try {
+      // Check if there's a new interview that needs a strategy
+      const currentInterviewId = localStorage.getItem("interviewId");
+
       // First try to get strategy
-      const strategy = await strategyApi.getLatestStrategy();
+      let strategy;
+      try {
+        strategy = await strategyApi.getLatestStrategy();
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          // No strategy found - check if we have an interview to generate from
+          if (currentInterviewId) {
+            setError("Strategy not generated yet. Please visit the Strategy page first.");
+          } else {
+            setError("No marketing strategy found. Complete an interview first.");
+          }
+          return;
+        }
+        throw err;
+      }
+
+      // If the strategy doesn't match the current interview, redirect to strategy page
+      if (currentInterviewId && strategy.interview_id !== currentInterviewId) {
+        setError("A new interview was completed. Please visit the Strategy page to generate your new strategy first.");
+        return;
+      }
+
       setStrategyId(strategy.id);
 
       // Get posts for this strategy
@@ -115,12 +139,7 @@ export default function ContentPage() {
 
       // Don't auto-generate - let user select platforms first
     } catch (err: any) {
-      if (err.response?.status === 404) {
-        // No strategy found
-        setError("No marketing strategy found. Complete an interview first.");
-      } else {
-        setError("Failed to load content. Please try again.");
-      }
+      setError("Failed to load content. Please try again.");
     } finally {
       setLoading(false);
     }

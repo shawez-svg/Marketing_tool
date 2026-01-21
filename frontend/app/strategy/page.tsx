@@ -278,19 +278,36 @@ export default function StrategyPage() {
     setError(null);
 
     try {
-      const data = await strategyApi.getLatestStrategy();
-      setStrategy(data);
-    } catch (err: any) {
-      if (err.response?.status === 404) {
-        const interviewId = localStorage.getItem("interviewId");
-        if (interviewId) {
-          await generateStrategyFromInterview(interviewId);
-        } else {
-          setError("No strategy found. Complete an interview first.");
+      // Check if there's a new interview that needs a strategy
+      const currentInterviewId = localStorage.getItem("interviewId");
+
+      // Try to get the latest strategy
+      let data: Strategy | null = null;
+      try {
+        data = await strategyApi.getLatestStrategy();
+      } catch (err: any) {
+        if (err.response?.status !== 404) {
+          throw err;
         }
-      } else {
-        setError("Failed to load strategy. Please try again.");
       }
+
+      // If we have a current interview ID and it doesn't match the strategy, generate new
+      if (currentInterviewId) {
+        if (!data || data.interview_id !== currentInterviewId) {
+          // New interview completed - generate fresh strategy
+          setLoading(false);
+          await generateStrategyFromInterview(currentInterviewId);
+          return;
+        }
+      }
+
+      if (data) {
+        setStrategy(data);
+      } else {
+        setError("No strategy found. Complete an interview first.");
+      }
+    } catch (err: any) {
+      setError("Failed to load strategy. Please try again.");
     } finally {
       setLoading(false);
     }

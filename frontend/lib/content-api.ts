@@ -20,6 +20,7 @@ export interface Post {
   strategy_id: string;
   platform: string;
   content_text: string;
+  content_media_url: string | null;
   tags: string[];
   content_pillar: string | null;
   status: "draft" | "approved" | "rejected" | "scheduled" | "posted" | "failed";
@@ -29,6 +30,13 @@ export interface Post {
   platform_post_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ImageGenerationResult {
+  success: boolean;
+  image_url?: string;
+  revised_prompt?: string;
+  error?: string;
 }
 
 export interface PostingResult {
@@ -54,6 +62,7 @@ export interface GenerateContentRequest {
 
 export interface UpdatePostRequest {
   content_text?: string;
+  content_media_url?: string;
   tags?: string[];
   status?: string;
 }
@@ -208,6 +217,34 @@ export const contentApi = {
    */
   async getConnectedAccounts(): Promise<{ accounts: string[]; email?: string; message?: string }> {
     const response = await api.get("/api/content/accounts/connected");
+    return response.data;
+  },
+
+  // ============================================================
+  // IMAGE GENERATION METHODS - AI image generation via DALL-E
+  // ============================================================
+
+  /**
+   * Generate an AI image for a post
+   */
+  async generateImageForPost(postId: string): Promise<ImageGenerationResult & { post_id: string }> {
+    const response = await api.post(`/api/content/${postId}/generate-image`);
+    return response.data;
+  },
+
+  /**
+   * Generate an AI image based on content
+   */
+  async generateImage(
+    postContent: string,
+    platform: string = "instagram",
+    brandContext?: string
+  ): Promise<ImageGenerationResult> {
+    const response = await api.post("/api/content/generate-image", {
+      post_content: postContent,
+      platform,
+      brand_context: brandContext,
+    });
     return response.data;
   },
 };

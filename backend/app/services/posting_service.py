@@ -83,10 +83,17 @@ class PostingService:
 
         # Handle platform-specific options
         if post.platform == Platform.INSTAGRAM:
-            # Instagram requires media for feed posts
+            # Instagram requires media for ALL posts (feed and stories)
             if not post.content_media_url:
-                # For text-only, we could use story or skip
-                payload["instagramOptions"] = {"story": True}
+                post.status = PostStatus.FAILED
+                db.commit()
+                return {
+                    "success": False,
+                    "post_id": str(post.id),
+                    "platform": platform_name,
+                    "error": "Instagram requires an image or video. Please add media to this post before publishing.",
+                    "requires_media": True,
+                }
 
         try:
             async with httpx.AsyncClient() as client:

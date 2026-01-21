@@ -14,7 +14,8 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.services.content_service import content_service
 from app.services.posting_service import posting_service
-from app.models.post import PostStatus, Platform
+from app.services.image_service import image_service
+from app.models.post import Post, PostStatus, Platform
 
 
 router = APIRouter()
@@ -33,8 +34,15 @@ class RegeneratePostRequest(BaseModel):
 
 class UpdatePostRequest(BaseModel):
     content_text: Optional[str] = None
+    content_media_url: Optional[str] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
+
+
+class GenerateImageRequest(BaseModel):
+    post_content: str
+    platform: str = "instagram"
+    brand_context: Optional[str] = None
 
 
 class SchedulePostRequest(BaseModel):
@@ -46,6 +54,7 @@ class PostResponse(BaseModel):
     strategy_id: str
     platform: str
     content_text: str
+    content_media_url: Optional[str] = None
     tags: List[str]
     content_pillar: Optional[str]
     status: str
@@ -89,6 +98,7 @@ def post_to_response(post) -> PostResponse:
         strategy_id=str(post.strategy_id),
         platform=post.platform.value,
         content_text=post.content_text,
+        content_media_url=post.content_media_url,
         tags=post.tags or [],
         content_pillar=post.content_pillar,
         status=post.status.value,
@@ -217,6 +227,12 @@ async def update_post(
                 request.content_text or post.content_text,
                 request.tags if request.tags is not None else post.tags,
             )
+
+        # Update media URL if provided
+        if request.content_media_url is not None:
+            post.content_media_url = request.content_media_url
+            db.commit()
+            db.refresh(post)
 
         # Update status if provided
         if request.status:
@@ -417,3 +433,143 @@ async def get_connected_accounts():
     """
     result = await posting_service.get_user_social_accounts()
     return result
+
+
+# ============================================================
+# IMAGE GENERATION ENDPOINTS - AI image generation via DALL-E
+# ============================================================
+
+
+@router.post("/generate-image")
+async def generate_image(request: GenerateImageRequest):
+    """
+    Generate an AI image using DALL-E for social media posts.
+
+    Creates a visually appealing image based on the post content,
+    optimized for the specified platform.
+    """
+    try:
+        result = await image_service.generate_social_media_image(
+            post_content=request.post_content,
+            platform=request.platform,
+            brand_context=request.brand_context,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+
+@router.post("/{post_id}/generate-image")
+async def generate_image_for_post(
+    post_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an AI image for a specific post and attach it.
+
+    Generates an image using DALL-E based on the post content
+    and automatically updates the post with the image URL.
+    """
+    try:
+        # Get the post
+        post = db.query(Post).filter(Post.id == post_id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        # Generate the image
+        result = await image_service.generate_social_media_image(
+            post_content=post.content_text,
+            platform=post.platform.value,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Image generation failed")
+            )
+
+        # Update the post with the image URL
+        post.content_media_url = result["image_url"]
+        db.commit()
+        db.refresh(post)
+
+        return {
+            "success": True,
+            "post_id": str(post.id),
+            "image_url": result["image_url"],
+            "revised_prompt": result.get("revised_prompt"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+
+# ============================================================
+# IMAGE GENERATION ENDPOINTS - AI image generation for posts
+# ============================================================
+
+
+@router.post("/generate-image")
+async def generate_image(request: GenerateImageRequest):
+    """
+    Generate an AI image for a social media post using DALL-E 3.
+
+    This is useful for platforms like Instagram that require images.
+    Returns a URL to the generated image.
+    """
+    try:
+        result = await image_service.generate_social_media_image(
+            post_content=request.post_content,
+            platform=request.platform,
+            brand_context=request.brand_context,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+
+@router.post("/{post_id}/generate-image")
+async def generate_image_for_post(
+    post_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an AI image for a specific post and attach it.
+
+    Generates an image based on the post content and updates the post
+    with the generated image URL.
+    """
+    try:
+        # Get the post
+        post = db.query(Post).filter(Post.id == post_id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        # Generate image
+        result = await image_service.generate_social_media_image(
+            post_content=post.content_text,
+            platform=post.platform.value,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Image generation failed")
+            )
+
+        # Update post with image URL
+        post.content_media_url = result["image_url"]
+        db.commit()
+        db.refresh(post)
+
+        return {
+            "success": True,
+            "post_id": str(post.id),
+            "image_url": result["image_url"],
+            "revised_prompt": result.get("revised_prompt"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")

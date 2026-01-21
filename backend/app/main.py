@@ -36,12 +36,32 @@ async def startup_event():
     """Create database tables on startup and create default user"""
     from uuid import UUID
     from app.database import SessionLocal
+    from sqlalchemy import text
 
     Base.metadata.create_all(bind=engine)
 
     # Create default user for development
     db = SessionLocal()
     try:
+        # Add missing columns if they don't exist
+        # Check and add platform_post_id to posts table
+        try:
+            db.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_id VARCHAR"))
+            db.commit()
+            print("Ensured platform_post_id column exists in posts table")
+        except Exception as e:
+            db.rollback()
+            print(f"Note: Could not add platform_post_id column: {e}")
+
+        # Check and add content_calendar to strategies table
+        try:
+            db.execute(text("ALTER TABLE strategies ADD COLUMN IF NOT EXISTS content_calendar JSON"))
+            db.commit()
+            print("Ensured content_calendar column exists in strategies table")
+        except Exception as e:
+            db.rollback()
+            print(f"Note: Could not add content_calendar column: {e}")
+
         default_user_id = UUID("00000000-0000-0000-0000-000000000001")
         existing_user = db.query(User).filter(User.id == default_user_id).first()
 
@@ -76,13 +96,8 @@ async def health_check():
 
 
 # Import and include routers
-from app.routes import interview
+from app.routes import interview, strategy, content
 
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
-
-# TODO: Add remaining routers when created
-# from app.routes import strategy, content, analytics, settings
-# app.include_router(strategy.router, prefix="/api/strategy", tags=["strategy"])
-# app.include_router(content.router, prefix="/api/content", tags=["content"])
-# app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
-# app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
+app.include_router(strategy.router, prefix="/api/strategy", tags=["strategy"])
+app.include_router(content.router, prefix="/api/content", tags=["content"])

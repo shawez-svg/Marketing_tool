@@ -11,10 +11,16 @@ from app.services.llm_service import llm_service
 class InterviewService:
     """Service for managing brand interviews"""
 
+    # Opening question to get interviewee's name
+    NAME_QUESTION = {
+        "question": "Hi! Welcome to your brand discovery interview. I'm excited to learn about you and your business. Before we dive in, what's your name?",
+        "category": "introduction",
+    }
+
     # Pre-defined interview questions as fallback
     DEFAULT_QUESTIONS = [
         {
-            "question": "Hi! I'm excited to learn about your business. Let's start with the basics - can you tell me what your business does and what products or services you offer?",
+            "question": "Nice to meet you! Now let's talk about your business - can you tell me what your business does and what products or services you offer?",
             "category": "business_overview",
         },
         {
@@ -135,39 +141,109 @@ class InterviewService:
         if not interview:
             raise ValueError(f"Interview {interview_id} not found")
 
-        # Count how many questions have been asked
+        # Parse transcript to count Q&A exchanges
         transcript = interview.transcript or ""
-        questions_asked = [
-            line.replace("AI: ", "")
-            for line in transcript.split("\n")
-            if line.startswith("AI: ")
-        ]
+        lines = [line.strip() for line in transcript.split("\n") if line.strip()]
+
+        questions_asked = []
+        user_responses = []
+
+        for line in lines:
+            if line.startswith("AI: "):
+                questions_asked.append(line[4:])
+            elif line.startswith("User: "):
+                user_responses.append(line[6:])
 
         question_count = len(questions_asked)
+        response_count = len(user_responses)
 
-        # Use default questions for first 8, then wrap up
-        if question_count >= len(self.DEFAULT_QUESTIONS):
+        # Maximum 9 questions (including name question) - after that, always signal completion
+        MAX_QUESTIONS = 9
+
+        # If we've asked max questions, mark as final
+        if question_count >= MAX_QUESTIONS:
             return {
-                "question": "Thank you so much for sharing all of this! I have everything I need to create your marketing strategy. Is there anything else you'd like to add before we wrap up?",
-                "category": "wrap_up",
+                "question": "Thank you so much for sharing! I now have everything I need to create your personalized marketing strategy. Click 'Complete Interview' to see your results.",
+                "category": "complete",
                 "is_final": True,
             }
 
-        if use_ai and transcript:
+        # Check if user has responded to the last question
+        # If last question has no response yet, don't ask a new one (return same question)
+        if question_count > 0 and response_count < question_count:
+            # User hasn't responded to the last question yet - return waiting state
+            last_question = questions_asked[-1] if questions_asked else ""
+            return {
+                "question": last_question,
+                "category": "waiting_for_response",
+                "is_final": False,
+            }
+
+        # FIRST QUESTION: Always ask for name
+        if question_count == 0:
+            return {**self.NAME_QUESTION, "is_final": False}
+
+        # Last question should be the wrap-up question
+        if question_count == MAX_QUESTIONS - 1:
+            return {
+                "question": "We're almost done! Is there anything else you'd like to share about your business or marketing goals that we haven't covered yet?",
+                "category": "wrap_up",
+                "is_final": False,
+            }
+
+        # Determine which categories have been covered based on questions asked
+        covered_categories = set()
+        covered_categories.add("introduction")  # Name question is always covered after first question
+
+        for q in questions_asked:
+            q_lower = q.lower()
+            if any(kw in q_lower for kw in ["business does", "products", "services", "what you offer", "tell me about your business", "what does your"]):
+                covered_categories.add("business_overview")
+            if any(kw in q_lower for kw in ["customer", "audience", "serve", "who are", "ideal client", "target", "demographic"]):
+                covered_categories.add("target_audience")
+            if any(kw in q_lower for kw in ["unique", "different", "competitor", "apart", "stand out", "differentiates", "sets you apart"]):
+                covered_categories.add("unique_value")
+            if any(kw in q_lower for kw in ["goal", "success", "objective", "achieve", "year", "aspiration", "vision"]):
+                covered_categories.add("goals")
+            if any(kw in q_lower for kw in ["marketing", "channel", "advertis", "promot", "current efforts", "campaigns", "outreach"]):
+                covered_categories.add("current_marketing")
+            if any(kw in q_lower for kw in ["personality", "brand voice", "person", "describe your brand", "tone", "values"]):
+                covered_categories.add("brand_personality")
+            if any(kw in q_lower for kw in ["content", "creating", "consuming", "admire", "type of", "posts", "videos"]):
+                covered_categories.add("content_preferences")
+
+        # Use AI for conversational questions (questions 2-8, after name)
+        if use_ai and question_count > 0:
             try:
                 # Generate AI question based on conversation
                 ai_question = await llm_service.generate_interview_question(
                     transcript_so_far=transcript,
                     questions_asked=questions_asked,
+                    covered_categories=list(covered_categories),
                 )
-                return {**ai_question, "is_final": False}
+
+                # Validate that AI didn't repeat a category we already covered
+                ai_category = ai_question.get("category", "")
+                if ai_category not in covered_categories or ai_category == "follow_up":
+                    return {**ai_question, "is_final": False}
+                # If AI repeated a category, fall through to default questions
+                print(f"AI repeated category {ai_category}, using fallback")
             except Exception as e:
                 # Fall back to default questions
                 print(f"AI question generation failed: {e}")
 
-        # Use default question
-        default_q = self.DEFAULT_QUESTIONS[question_count]
-        return {**default_q, "is_final": False}
+        # Use default question as fallback
+        # Skip questions in categories already covered
+        for default_q in self.DEFAULT_QUESTIONS:
+            if default_q["category"] not in covered_categories:
+                return {**default_q, "is_final": False}
+
+        # If we've gone through all default questions, signal completion
+        return {
+            "question": "Thank you for all that information! Click 'Complete Interview' to generate your marketing strategy.",
+            "category": "complete",
+            "is_final": True,
+        }
 
     async def add_question_to_transcript(
         self,
@@ -175,10 +251,25 @@ class InterviewService:
         interview_id: UUID,
         question: str,
     ) -> None:
-        """Add AI question to transcript"""
+        """Add AI question to transcript (prevents duplicates)"""
         interview = db.query(Interview).filter(Interview.id == interview_id).first()
         if not interview:
             raise ValueError(f"Interview {interview_id} not found")
+
+        # Check if this exact question was already the last AI message
+        transcript = interview.transcript or ""
+        lines = [line.strip() for line in transcript.split("\n") if line.strip()]
+
+        # Find the last AI line
+        last_ai_line = None
+        for line in reversed(lines):
+            if line.startswith("AI: "):
+                last_ai_line = line[4:]  # Remove "AI: " prefix
+                break
+
+        # Don't add duplicate question
+        if last_ai_line and last_ai_line.strip() == question.strip():
+            return
 
         if interview.transcript:
             interview.transcript += f"\n\nAI: {question}"

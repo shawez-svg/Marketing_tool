@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.services.interview_service import interview_service
+from app.services.tts_service import tts_service
 from app.models import InterviewStatus
 
 
@@ -224,3 +226,60 @@ async def list_interviews(db: Session = Depends(get_db)):
         }
         for interview in interviews
     ]
+
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: Optional[str] = "nova"  # nova is friendly and clear
+
+
+class TTSResponse(BaseModel):
+    audio_base64: str
+    content_type: str
+
+
+@router.post("/tts", response_model=TTSResponse)
+async def text_to_speech(request: TTSRequest):
+    """
+    Convert text to speech using OpenAI TTS API
+
+    Returns base64 encoded audio that can be played in the browser
+    """
+    try:
+        audio_base64 = await tts_service.text_to_speech_base64(
+            text=request.text,
+            voice=request.voice,
+        )
+
+        return TTSResponse(
+            audio_base64=audio_base64,
+            content_type="audio/mp3",
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS generation failed: {str(e)}")
+
+
+@router.post("/tts/stream")
+async def text_to_speech_stream(request: TTSRequest):
+    """
+    Convert text to speech and return audio stream directly
+
+    Can be used with HTML5 audio element
+    """
+    try:
+        audio_bytes = await tts_service.text_to_speech(
+            text=request.text,
+            voice=request.voice,
+        )
+
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mp3",
+            headers={
+                "Content-Disposition": "inline; filename=speech.mp3"
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS generation failed: {str(e)}")

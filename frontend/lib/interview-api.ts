@@ -59,6 +59,11 @@ export interface InterviewDetail {
   completed_at: string | null;
 }
 
+export interface TTSResponse {
+  audio_base64: string;
+  content_type: string;
+}
+
 export const interviewApi = {
   /**
    * Start a new interview session
@@ -143,6 +148,47 @@ export const interviewApi = {
   async listInterviews(): Promise<InterviewDetail[]> {
     const response = await api.get<InterviewDetail[]>("/api/interview/");
     return response.data;
+  },
+
+  /**
+   * Convert text to speech using OpenAI TTS
+   */
+  async textToSpeech(text: string, voice: string = "nova"): Promise<TTSResponse> {
+    const response = await api.post<TTSResponse>("/api/interview/tts", {
+      text,
+      voice,
+    });
+    return response.data;
+  },
+
+  /**
+   * Play text as speech in the browser
+   */
+  async speakText(text: string, voice: string = "nova"): Promise<void> {
+    try {
+      const ttsResponse = await this.textToSpeech(text, voice);
+
+      // Convert base64 to audio and play
+      const audioData = atob(ttsResponse.audio_base64);
+      const audioArray = new Uint8Array(audioData.length);
+      for (let i = 0; i < audioData.length; i++) {
+        audioArray[i] = audioData.charCodeAt(i);
+      }
+
+      const audioBlob = new Blob([audioArray], { type: "audio/mp3" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      const audio = new Audio(audioUrl);
+      await audio.play();
+
+      // Clean up URL after playing
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+    } catch (error) {
+      console.error("TTS playback failed:", error);
+      throw error;
+    }
   },
 };
 

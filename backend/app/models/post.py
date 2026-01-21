@@ -43,6 +43,9 @@ class Post(Base):
     posted_at = Column(DateTime, nullable=True)
     suggested_time = Column(DateTime, nullable=True)
 
+    # Platform-specific data
+    platform_post_id = Column(String, nullable=True)  # ID from social media platform
+
     # Content categorization
     content_pillar = Column(String, nullable=True)
 

@@ -66,6 +66,19 @@ export default function InterviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [analysis, setAnalysis] = useState<CompleteInterviewResponse | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Speak a question using TTS
+  const speakQuestion = async (text: string) => {
+    setIsSpeaking(true);
+    try {
+      await interviewApi.speakText(text, "nova");
+    } catch (err) {
+      console.error("TTS failed, continuing without voice:", err);
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
 
   // Audio recorder hook
   const handleAudioChunk = useCallback(
@@ -129,6 +142,9 @@ export default function InterviewPage() {
       ]);
 
       setPhase("waiting");
+
+      // Speak the first question
+      speakQuestion(response.first_question);
     } catch (err) {
       setError("Failed to start interview. Please try again.");
       setPhase("idle");
@@ -177,6 +193,8 @@ export default function InterviewPage() {
         await handleCompleteInterview();
       } else {
         setPhase("waiting");
+        // Speak the next question
+        speakQuestion(nextQuestion.question);
       }
     } catch (err) {
       setError("Failed to get next question. Please try again.");
@@ -310,11 +328,19 @@ export default function InterviewPage() {
                   <span className="font-medium">Processing...</span>
                 </div>
               )}
-              {phase === "waiting" && (
+              {phase === "waiting" && !isSpeaking && (
                 <div className="flex items-center space-x-2 text-green-600">
                   <Volume2 className="h-5 w-5" />
                   <span className="font-medium">
                     Ready - Click to respond
+                  </span>
+                </div>
+              )}
+              {phase === "waiting" && isSpeaking && (
+                <div className="flex items-center space-x-2 text-purple-600">
+                  <Volume2 className="h-5 w-5 animate-pulse" />
+                  <span className="font-medium">
+                    AI is speaking...
                   </span>
                 </div>
               )}
@@ -470,13 +496,13 @@ export default function InterviewPage() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Questions Answered</span>
               <span className="font-medium text-gray-900">
-                {questionsAnswered} / 8
+                {questionsAnswered} / 9
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
               <div
                 className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${(questionsAnswered / 8) * 100}%` }}
+                style={{ width: `${(questionsAnswered / 9) * 100}%` }}
               />
             </div>
           </div>

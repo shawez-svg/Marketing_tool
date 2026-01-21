@@ -117,6 +117,7 @@ export default function InterviewPage() {
     stopRecording,
     pauseRecording,
     resumeRecording,
+    getAudioChunk,
     error: recorderError,
   } = useAudioRecorder(handleAudioChunk, 10000);
 
@@ -165,12 +166,45 @@ export default function InterviewPage() {
 
   // Stop recording and get next question
   const handleStopRecording = async () => {
-    stopRecording();
     setPhase("processing");
 
-    if (!interviewId) return;
+    if (!interviewId) {
+      stopRecording();
+      return;
+    }
 
     try {
+      // Get the final audio chunk before stopping
+      const finalChunk = await getAudioChunk();
+
+      // Stop recording now
+      stopRecording();
+
+      // Send the final audio chunk if we have one
+      if (finalChunk && finalChunk.size > 0) {
+        try {
+          const result = await interviewApi.sendAudioChunk(interviewId, finalChunk);
+
+          // Add user message to the UI if transcription was successful
+          if (result.transcription) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "user",
+                content: result.transcription,
+                timestamp: new Date(),
+              },
+            ]);
+          }
+        } catch (audioErr) {
+          console.error("Failed to send final audio chunk:", audioErr);
+          // Continue to get next question anyway
+        }
+      }
+
+      // Small delay to ensure backend has processed the audio
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Get next question
       const nextQuestion = await interviewApi.getNextQuestion(interviewId, true);
 

@@ -381,7 +381,7 @@ export default function StrategyPage() {
         <div className="rounded-lg border bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center space-x-2">
             <Target className="h-5 w-5 text-blue-600" />
-            <h2 className="text-xl font-semibold">Brand Profile</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Brand Profile</h2>
           </div>
           <p className="text-gray-700 whitespace-pre-line">{strategy.brand_summary}</p>
           {strategy.value_proposition && (
@@ -397,12 +397,12 @@ export default function StrategyPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
               <Users className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Target Audience</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Target Audience</h2>
             </div>
             <div className="space-y-4">
               {strategy.target_audience.map((audience, i) => (
                 <div key={i} className="rounded-lg bg-gray-50 p-4">
-                  <h3 className="font-semibold">{audience.persona_name}</h3>
+                  <h3 className="font-semibold text-gray-900">{audience.persona_name}</h3>
                   <p className="text-sm text-gray-600">{audience.demographics}</p>
                   {audience.pain_points?.length > 0 && (
                     <ul className="mt-2 list-inside list-disc text-sm text-gray-700">
@@ -420,13 +420,13 @@ export default function StrategyPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
               <Megaphone className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Recommended Channels</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Recommended Channels</h2>
             </div>
             <div className="space-y-4">
               {strategy.recommended_channels.map((ch, i) => (
                 <div key={i} className={`border-l-4 p-4 ${ch.priority === "primary" ? "border-blue-600 bg-blue-50" : "border-gray-400 bg-gray-50"}`}>
                   <div className="flex justify-between">
-                    <h3 className="font-semibold">{ch.platform}</h3>
+                    <h3 className="font-semibold text-gray-900">{ch.platform}</h3>
                     <span className={`rounded-full px-2 py-1 text-xs ${ch.priority === "primary" ? "bg-blue-200 text-blue-800" : "bg-gray-200"}`}>
                       {ch.priority}
                     </span>
@@ -444,13 +444,13 @@ export default function StrategyPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
               <Lightbulb className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Content Pillars</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Content Pillars</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {strategy.content_pillars.map((pillar, i) => (
                 <div key={i} className="rounded-lg bg-gray-50 p-4">
                   <div className="flex justify-between">
-                    <h3 className="font-semibold">{pillar.pillar_name}</h3>
+                    <h3 className="font-semibold text-gray-900">{pillar.pillar_name}</h3>
                     <span className="text-sm text-blue-600">{pillar.percentage}%</span>
                   </div>
                   <p className="mt-1 text-sm text-gray-600">{pillar.description}</p>
@@ -465,7 +465,7 @@ export default function StrategyPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
               <MessageSquare className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Brand Voice & Tone</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Brand Voice & Tone</h2>
             </div>
             <p className="text-gray-700">{strategy.tone_and_voice.brand_voice}</p>
             {strategy.tone_and_voice.tone_attributes?.length > 0 && (
@@ -483,14 +483,14 @@ export default function StrategyPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
               <Hash className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Hashtag Strategy</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Hashtag Strategy</h2>
             </div>
             {strategy.hashtag_strategy.map((cat, i) => (
               <div key={i} className="mb-3">
-                <p className="font-medium">{cat.category}</p>
+                <p className="font-medium text-gray-900">{cat.category}</p>
                 <div className="mt-1 flex flex-wrap gap-2">
                   {cat.hashtags.map((tag, j) => (
-                    <span key={j} className="rounded bg-gray-100 px-2 py-1 text-sm">{tag}</span>
+                    <span key={j} className="rounded bg-gray-100 px-2 py-1 text-sm text-gray-700">{tag}</span>
                   ))}
                 </div>
               </div>

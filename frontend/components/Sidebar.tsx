@@ -10,7 +10,9 @@ import {
   CheckSquare,
   BarChart3,
   Settings,
+  LogOut,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const navigation = [
   {
@@ -47,6 +49,13 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem("demoUser");
+    localStorage.removeItem("userProfile");
+    router.push("/login");
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-gray-50">
@@ -100,8 +109,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Settings at bottom */}
-      <div className="border-t p-3">
+      {/* Settings & Profile at bottom */}
+      <div className="border-t p-3 space-y-1">
         <Link
           href="/settings"
           className={cn(
@@ -119,8 +128,15 @@ export function Sidebar() {
                 : "text-gray-400 group-hover:text-gray-600"
             )}
           />
-          Settings
+          Settings & Profile
         </Link>
+        <button
+          onClick={handleLogout}
+          className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-red-600" />
+          Logout
+        </button>
       </div>
     </div>
   );

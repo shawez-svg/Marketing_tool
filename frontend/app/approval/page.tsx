@@ -90,18 +90,48 @@ export default function ApprovalPage() {
     }
   };
 
+  // State for scheduling loading
+  const [isScheduling, setIsScheduling] = useState(false);
+
   const handleSchedule = async () => {
     if (!schedulingPost || !scheduleDate || !scheduleTime) return;
 
+    setIsScheduling(true);
     try {
       const scheduledTime = new Date(`${scheduleDate}T${scheduleTime}`);
-      const updated = await contentApi.schedulePost(schedulingPost.id, scheduledTime);
-      setPosts((prev) => prev.map((p) => (p.id === schedulingPost.id ? updated : p)));
+
+      // Use the Ayrshare scheduling endpoint
+      const result = await contentApi.schedulePostToSocial(schedulingPost.id, scheduledTime);
+
+      if (result.success) {
+        // Refresh post data to get updated status
+        const updated = await contentApi.getPost(schedulingPost.id);
+        setPosts((prev) => prev.map((p) => (p.id === schedulingPost.id ? updated : p)));
+
+        setPostingMessage({
+          type: "success",
+          message: result.message || `Post scheduled for ${scheduledTime.toLocaleString()}`,
+        });
+      } else {
+        setPostingMessage({
+          type: "error",
+          message: result.error || "Failed to schedule post",
+        });
+      }
+
+      // Close modal and reset state
       setSchedulingPost(null);
       setScheduleDate("");
       setScheduleTime("");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to schedule post:", err);
+      setPostingMessage({
+        type: "error",
+        message: err.response?.data?.detail || "Failed to schedule post",
+      });
+    } finally {
+      setIsScheduling(false);
+      setTimeout(() => setPostingMessage(null), 5000);
     }
   };
 
@@ -564,7 +594,15 @@ export default function ApprovalPage() {
                   {post.status === "scheduled" && (
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => setSchedulingPost(post)}
+                        onClick={() => {
+                          // Pre-populate date/time from existing schedule
+                          if (post.scheduled_time) {
+                            const dt = new Date(post.scheduled_time);
+                            setScheduleDate(dt.toISOString().split("T")[0]);
+                            setScheduleTime(dt.toTimeString().slice(0, 5));
+                          }
+                          setSchedulingPost(post);
+                        }}
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         Edit Schedule
@@ -661,16 +699,24 @@ export default function ApprovalPage() {
                     setScheduleDate("");
                     setScheduleTime("");
                   }}
-                  className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+                  disabled={isScheduling}
+                  className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSchedule}
-                  disabled={!scheduleDate || !scheduleTime}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                  disabled={!scheduleDate || !scheduleTime || isScheduling}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50 flex items-center"
                 >
-                  Schedule
+                  {isScheduling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Scheduling...
+                    </>
+                  ) : (
+                    "Schedule"
+                  )}
                 </button>
               </div>
             </div>

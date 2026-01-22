@@ -80,7 +80,10 @@ export default function InterviewPage() {
     }
   };
 
-  // Audio recorder hook
+  // Track transcriptions to avoid duplicates
+  const [lastTranscription, setLastTranscription] = useState<string>("");
+
+  // Audio recorder hook - only send to backend, don't add to messages yet
   const handleAudioChunk = useCallback(
     async (chunk: Blob) => {
       if (!interviewId || isProcessing) return;
@@ -89,15 +92,16 @@ export default function InterviewPage() {
       try {
         const result = await interviewApi.sendAudioChunk(interviewId, chunk);
 
+        // Store the transcription but don't add to messages yet
+        // Messages will be added in handleStopRecording to avoid duplicates
         if (result.transcription) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "user",
-              content: result.transcription,
-              timestamp: new Date(),
-            },
-          ]);
+          setLastTranscription((prev) => {
+            // Append new transcription if it's different
+            if (result.transcription && !prev.includes(result.transcription)) {
+              return prev ? `${prev} ${result.transcription}` : result.transcription;
+            }
+            return prev;
+          });
         }
       } catch (err) {
         console.error("Failed to process audio chunk:", err);
@@ -180,27 +184,38 @@ export default function InterviewPage() {
       // Stop recording now
       stopRecording();
 
+      let finalTranscription = lastTranscription;
+
       // Send the final audio chunk if we have one
       if (finalChunk && finalChunk.size > 0) {
         try {
           const result = await interviewApi.sendAudioChunk(interviewId, finalChunk);
 
-          // Add user message to the UI if transcription was successful
-          if (result.transcription) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "user",
-                content: result.transcription,
-                timestamp: new Date(),
-              },
-            ]);
+          // Append final chunk transcription if it's new
+          if (result.transcription && !finalTranscription.includes(result.transcription)) {
+            finalTranscription = finalTranscription
+              ? `${finalTranscription} ${result.transcription}`
+              : result.transcription;
           }
         } catch (audioErr) {
           console.error("Failed to send final audio chunk:", audioErr);
-          // Continue to get next question anyway
         }
       }
+
+      // Add user message to UI (combined transcription from all chunks)
+      if (finalTranscription.trim()) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "user",
+            content: finalTranscription.trim(),
+            timestamp: new Date(),
+          },
+        ]);
+      }
+
+      // Reset transcription tracker for next recording
+      setLastTranscription("");
 
       // Small delay to ensure backend has processed the audio
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -265,8 +280,25 @@ export default function InterviewPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Helper to safely get analysis data
+  const getAnalysisData = () => {
+    if (!analysis?.analysis) return null;
+    return {
+      businessSummary: analysis.analysis.business_summary ||
+                       analysis.analysis.business_overview ||
+                       "Business analysis is being processed...",
+      targetAudience: analysis.analysis.target_audience || [],
+      valueProposition: analysis.analysis.unique_value_proposition || "",
+      goals: analysis.analysis.business_goals || [],
+      platforms: analysis.analysis.recommended_platforms || [],
+      contentPillars: analysis.analysis.content_pillars || [],
+    };
+  };
+
   // Render interview complete state
   if (phase === "complete" && analysis) {
+    const analysisData = getAnalysisData();
+
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -305,14 +337,16 @@ export default function InterviewPage() {
             </h2>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <p className="text-sm text-gray-500">Duration</p>
-                <p className="font-medium">
-                  {formatDuration(analysis.duration_seconds)}
+                <p className="text-sm text-gray-600">Duration</p>
+                <p className="font-medium text-gray-900">
+                  {analysis.duration_seconds > 0
+                    ? formatDuration(analysis.duration_seconds)
+                    : formatDuration(duration)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Questions Answered</p>
-                <p className="font-medium">{questionsAnswered}</p>
+                <p className="text-sm text-gray-600">Questions Answered</p>
+                <p className="font-medium text-gray-900">{questionsAnswered || messages.filter(m => m.role === "user").length}</p>
               </div>
             </div>
           </div>
@@ -322,8 +356,46 @@ export default function InterviewPage() {
             <h2 className="mb-4 text-xl font-semibold text-gray-900">
               Business Summary
             </h2>
-            <p className="text-gray-700">{analysis.analysis.business_summary}</p>
+            {analysisData?.businessSummary ? (
+              <p className="text-gray-700">{analysisData.businessSummary}</p>
+            ) : (
+              <div className="flex items-center text-gray-500">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <span>Generating business summary...</span>
+              </div>
+            )}
           </div>
+
+          {/* Key Insights */}
+          {analysisData && (analysisData.goals.length > 0 || analysisData.contentPillars.length > 0) && (
+            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-xl font-semibold text-gray-900">
+                Key Insights
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                {analysisData.goals.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Business Goals</p>
+                    <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                      {analysisData.goals.slice(0, 3).map((goal: string, idx: number) => (
+                        <li key={idx}>{goal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {analysisData.contentPillars.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Content Pillars</p>
+                    <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                      {analysisData.contentPillars.slice(0, 3).map((pillar: string, idx: number) => (
+                        <li key={idx}>{pillar}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </DashboardLayout>
     );
@@ -528,7 +600,7 @@ export default function InterviewPage() {
           <h3 className="mb-3 font-medium text-gray-900">Interview Progress</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Questions Answered</span>
+              <span className="text-gray-700">Questions Answered</span>
               <span className="font-medium text-gray-900">
                 {questionsAnswered} / 9
               </span>
@@ -543,7 +615,7 @@ export default function InterviewPage() {
 
           {/* Duration */}
           {phase !== "idle" && (
-            <div className="mt-4 text-sm text-gray-500">
+            <div className="mt-4 text-sm text-gray-700">
               Total recording time: {formatDuration(duration)}
             </div>
           )}

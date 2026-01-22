@@ -12,15 +12,147 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* Force light mode - remove dark mode override */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+} */
+
+* {
+  color-scheme: light only;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #ffffff !important;
+  color: #171717 !important;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Ensure all main containers have solid backgrounds */
+main {
+  background-color: #ffffff !important;
+}
+
+/* Fix any transparency issues for backgrounds */
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+.bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+
+.bg-gray-100 {
+  background-color: #f3f4f6 !important;
+}
+
+/* Fix text colors */
+.text-gray-900 {
+  color: #111827 !important;
+}
+
+.text-gray-800 {
+  color: #1f2937 !important;
+}
+
+.text-gray-700 {
+  color: #374151 !important;
+}
+
+.text-gray-600 {
+  color: #4b5563 !important;
+}
+
+.text-gray-500 {
+  color: #6b7280 !important;
+}
+
+/* Fix all text and headings */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827;
+}
+
+p {
+  color: #374151;
+}
+
+/* Fix form inputs */
+input, textarea, select {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border-color: #d1d5db;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+input:focus, textarea:focus, select:focus {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Fix labels */
+label {
+  color: #374151;
+}
+
+/* Fix card backgrounds */
+.rounded-lg {
+  background-color: inherit;
+}
+
+/* Ensure white cards stay white */
+div[class*="bg-white"] {
+  background-color: #ffffff !important;
+}
+
+div[class*="border-gray"] {
+  background-color: #ffffff;
+}
+
+/* Fix specific component backgrounds */
+.shadow-sm {
+  background-color: #ffffff;
+}
+
+/* Fix hover states */
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb !important;
+}
+
+.hover\:bg-gray-100:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Ensure spans have proper colors */
+span {
+  color: inherit;
+}
+
+/* Fix button text */
+button {
+  color: inherit;
+}
+
+/* Fix links */
+a {
+  color: inherit;
+}
+
+/* Specific fixes for interview page timer and summary */
+.font-medium {
+  color: inherit;
+}
+
+/* Ensure list items have proper colors */
+li {
+  color: #374151;
+}
+
+/* Fix any remaining white text issues */
+[class*="text-white"] {
+  color: #ffffff !important;
 }

@@ -220,8 +220,23 @@ class PostingService:
         if not platform_name:
             raise ValueError(f"Unsupported platform: {post.platform}")
 
-        # Format time for Ayrshare (ISO 8601)
-        schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Instagram requires media
+        if post.platform == Platform.INSTAGRAM and not post.content_media_url:
+            return {
+                "success": False,
+                "post_id": str(post.id),
+                "platform": platform_name,
+                "error": "Instagram requires an image or video. Please add media before scheduling.",
+                "requires_media": True,
+            }
+
+        # Format time for Ayrshare (ISO 8601 with timezone)
+        # Ayrshare expects UTC time
+        if scheduled_time.tzinfo is None:
+            # Assume local time, convert to UTC format
+            schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         payload = {
             "post": post.content_text,
@@ -243,7 +258,7 @@ class PostingService:
 
                 result = response.json()
 
-                if response.status_code == 200:
+                if response.status_code == 200 and result.get("status") != "error":
                     post.status = PostStatus.SCHEDULED
                     post.scheduled_time = scheduled_time
                     post.platform_post_id = result.get("id")
@@ -255,13 +270,23 @@ class PostingService:
                         "platform": platform_name,
                         "scheduled_time": schedule_date,
                         "platform_post_id": result.get("id"),
-                        "message": "Scheduled successfully",
+                        "message": "Scheduled successfully via Ayrshare",
                     }
                 else:
+                    # Get detailed error message
+                    error_msg = result.get("message") or result.get("error") or result.get("errors")
+                    if isinstance(error_msg, list):
+                        error_msg = "; ".join(str(e) for e in error_msg)
+                    if isinstance(error_msg, dict):
+                        error_msg = str(error_msg)
+                    if not error_msg:
+                        error_msg = f"Scheduling failed (status {response.status_code})"
+
                     return {
                         "success": False,
                         "post_id": str(post.id),
-                        "error": result.get("message", "Unknown error"),
+                        "platform": platform_name,
+                        "error": error_msg,
                     }
 
         except Exception as e:

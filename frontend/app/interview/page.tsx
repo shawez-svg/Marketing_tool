@@ -283,9 +283,11 @@ export default function InterviewPage() {
   // Helper to safely get analysis data
   const getAnalysisData = () => {
     if (!analysis?.analysis) return null;
+    // Use type assertion to handle potential extra fields from API
+    const analysisObj = analysis.analysis as Record<string, unknown>;
     return {
-      businessSummary: analysis.analysis.business_summary ||
-                       analysis.analysis.business_overview ||
+      businessSummary: (analysisObj.business_summary as string) ||
+                       (analysisObj.business_overview as string) ||
                        "Business analysis is being processed...",
       targetAudience: analysis.analysis.target_audience || [],
       valueProposition: analysis.analysis.unique_value_proposition || "",

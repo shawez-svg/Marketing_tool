@@ -113,8 +113,8 @@ div[class*="border-gray"] {
   background-color: #ffffff;
 }
 
-/* Fix specific component backgrounds */
-.shadow-sm {
+/* Fix specific component backgrounds - only for cards, not buttons */
+div.shadow-sm {
   background-color: #ffffff;
 }
 
@@ -132,9 +132,57 @@ span {
   color: inherit;
 }
 
-/* Fix button text */
+/* Fix button text - but preserve button backgrounds */
 button {
   color: inherit;
+}
+
+/* Preserve blue button backgrounds */
+.bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.bg-blue-700 {
+  background-color: #1d4ed8 !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.bg-blue-500 {
+  background-color: #3b82f6 !important;
+}
+
+/* Preserve green button backgrounds */
+.bg-green-600 {
+  background-color: #16a34a !important;
+}
+
+.hover\:bg-green-700:hover {
+  background-color: #15803d !important;
+}
+
+/* Preserve red button backgrounds */
+.bg-red-600 {
+  background-color: #dc2626 !important;
+}
+
+.hover\:bg-red-700:hover {
+  background-color: #b91c1c !important;
+}
+
+/* Preserve button text colors */
+button.bg-blue-600,
+button.bg-green-600,
+button.bg-red-600 {
+  color: #ffffff !important;
+}
+
+/* Fix buttons with text-white class */
+button .text-white,
+button[class*="bg-blue"] {
+  color: #ffffff !important;
 }
 
 /* Fix links */

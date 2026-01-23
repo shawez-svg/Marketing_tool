@@ -38,45 +38,53 @@ async def startup_event():
     from app.database import SessionLocal
     from sqlalchemy import text
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created successfully")
+    except Exception as e:
+        print(f"Warning: Could not create database tables: {e}")
+        return  # Don't fail startup, allow health checks to work
 
     # Create default user for development
-    db = SessionLocal()
     try:
-        # Add missing columns if they don't exist
-        # Check and add platform_post_id to posts table
+        db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_id VARCHAR"))
-            db.commit()
-            print("Ensured platform_post_id column exists in posts table")
-        except Exception as e:
-            db.rollback()
-            print(f"Note: Could not add platform_post_id column: {e}")
+            # Add missing columns if they don't exist
+            # Check and add platform_post_id to posts table
+            try:
+                db.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_id VARCHAR"))
+                db.commit()
+                print("Ensured platform_post_id column exists in posts table")
+            except Exception as e:
+                db.rollback()
+                print(f"Note: Could not add platform_post_id column: {e}")
 
-        # Check and add content_calendar to strategies table
-        try:
-            db.execute(text("ALTER TABLE strategies ADD COLUMN IF NOT EXISTS content_calendar JSON"))
-            db.commit()
-            print("Ensured content_calendar column exists in strategies table")
-        except Exception as e:
-            db.rollback()
-            print(f"Note: Could not add content_calendar column: {e}")
+            # Check and add content_calendar to strategies table
+            try:
+                db.execute(text("ALTER TABLE strategies ADD COLUMN IF NOT EXISTS content_calendar JSON"))
+                db.commit()
+                print("Ensured content_calendar column exists in strategies table")
+            except Exception as e:
+                db.rollback()
+                print(f"Note: Could not add content_calendar column: {e}")
 
-        default_user_id = UUID("00000000-0000-0000-0000-000000000001")
-        existing_user = db.query(User).filter(User.id == default_user_id).first()
+            default_user_id = UUID("00000000-0000-0000-0000-000000000001")
+            existing_user = db.query(User).filter(User.id == default_user_id).first()
 
-        if not existing_user:
-            default_user = User(
-                id=default_user_id,
-                email="dev@example.com",
-                name="Development User",
-                hashed_password="not_a_real_password",
-            )
-            db.add(default_user)
-            db.commit()
-            print("Created default development user")
-    finally:
-        db.close()
+            if not existing_user:
+                default_user = User(
+                    id=default_user_id,
+                    email="dev@example.com",
+                    name="Development User",
+                    hashed_password="not_a_real_password",
+                )
+                db.add(default_user)
+                db.commit()
+                print("Created default development user")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Warning: Database initialization error: {e}")
 
 
 # Root endpoint

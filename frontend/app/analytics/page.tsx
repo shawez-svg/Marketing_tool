@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
           </div>
           <button
             onClick={loadPosts}
-            className="flex items-center space-x-2 rounded-lg border px-4 py-2 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             <RefreshCw className="h-4 w-4" />
             <span>Refresh</span>
@@ -210,53 +210,59 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Approval Rate */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Approval Rate</h2>
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <div className="h-4 w-full overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-green-600 transition-all duration-300"
-                  style={{ width: `${stats.approvalRate}%` }}
-                />
-              </div>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">{stats.approvalRate}%</span>
-          </div>
-          <p className="mt-2 text-sm text-gray-600">
-            {stats.totalApproved + stats.totalScheduled + stats.totalPosted} out of {stats.totalGenerated} posts approved
-          </p>
-        </div>
-
-        {/* Platform Breakdown */}
-        {platformBreakdown.length > 0 && (
+        {/* Approval Rate & Platform Breakdown - Side by Side */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Approval Rate */}
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center space-x-2">
-              <BarChart3 className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Posts by Platform</h2>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Approval Rate</h2>
             </div>
-            <div className="space-y-4">
-              {platformBreakdown.map((item) => (
-                <div key={item.platform} className="flex items-center">
-                  <span className="w-24 text-sm text-gray-700">{item.label}</span>
-                  <div className="flex-1">
-                    <div className="h-8 overflow-hidden rounded-lg bg-gray-100">
-                      <div
-                        className={`h-full ${item.color} flex items-center justify-end px-3 text-sm font-medium text-white transition-all duration-300`}
-                        style={{
-                          width: `${Math.max((item.count / stats.totalGenerated) * 100, 10)}%`,
-                        }}
-                      >
-                        {item.count}
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <div className="h-4 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-300"
+                    style={{ width: `${stats.approvalRate}%` }}
+                  />
+                </div>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">{stats.approvalRate}%</span>
+            </div>
+            <p className="mt-2 text-sm text-gray-600">
+              {stats.totalApproved + stats.totalScheduled + stats.totalPosted} out of {stats.totalGenerated} posts approved
+            </p>
+          </div>
+
+          {/* Platform Breakdown */}
+          {platformBreakdown.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Posts by Platform</h2>
+              </div>
+              <div className="space-y-3">
+                {platformBreakdown.map((item) => (
+                  <div key={item.platform} className="flex items-center">
+                    <span className="w-24 text-sm text-gray-700">{item.label}</span>
+                    <div className="flex-1">
+                      <div className="h-6 overflow-hidden rounded-lg bg-gray-100">
+                        <div
+                          className={`h-full ${item.color} flex items-center justify-end px-2 text-xs font-medium text-white transition-all duration-300`}
+                          style={{
+                            width: `${Math.max((item.count / stats.totalGenerated) * 100, 15)}%`,
+                          }}
+                        >
+                          {item.count}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Posted Content */}
@@ -388,13 +394,13 @@ export default function AnalyticsPage() {
           </button>
           <button
             onClick={() => router.push("/approval")}
-            className="rounded-lg border px-6 py-3 hover:bg-gray-50"
+            className="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
           >
             Manage Approvals
           </button>
           <button
             onClick={() => router.push("/strategy")}
-            className="rounded-lg border px-6 py-3 hover:bg-gray-50"
+            className="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
           >
             View Strategy
           </button>

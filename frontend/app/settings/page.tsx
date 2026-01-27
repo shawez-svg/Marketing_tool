@@ -271,44 +271,53 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Profile Setup Section */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 flex items-center text-xl font-semibold text-gray-900">
-            <User className="mr-2 h-5 w-5" />
-            Profile Setup
-            {isProfileComplete && (
-              <span className="ml-2 flex items-center text-sm font-normal text-green-600">
-                <CheckCircle className="mr-1 h-4 w-4" />
-                Complete
-              </span>
-            )}
-          </h2>
+        {/* Profile Setup Section - Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Profile Form */}
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 flex items-center text-xl font-semibold text-gray-900">
+              <User className="mr-2 h-5 w-5 text-blue-600" />
+              Profile Setup
+              {isProfileComplete && (
+                <span className="ml-2 flex items-center text-sm font-normal text-green-600">
+                  <CheckCircle className="mr-1 h-4 w-4" />
+                  Complete
+                </span>
+              )}
+            </h2>
 
-          <div className="space-y-5">
-            {/* Name Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                placeholder="Enter your full name"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-              />
-            </div>
-
-            {/* Email Display */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <div className="flex items-center px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50">
-                <Mail className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-gray-700">{userEmail || "Not set"}</span>
+            <div className="space-y-5">
+              {/* Name Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                />
               </div>
-            </div>
+
+              {/* Email Input - Now Editable */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={userEmail}
+                    readOnly
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 cursor-default outline-none"
+                    title="Email cannot be changed"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Email is linked to your account</p>
+              </div>
 
             {/* Company Website Input */}
             <div>
@@ -427,19 +436,90 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Continue Button */}
-            <div className="pt-4 border-t border-gray-100">
-              <button
-                onClick={continueToInterview}
-                disabled={!profileName.trim()}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                Save & Continue to Brand Interview
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </button>
-              <p className="text-center text-xs text-gray-500 mt-2">
-                You can update your profile anytime
+              {/* Continue Button */}
+              <div className="pt-4 border-t border-gray-100">
+                <button
+                  onClick={continueToInterview}
+                  disabled={!profileName.trim()}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
+                >
+                  Save & Continue to Brand Interview
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </button>
+                <p className="text-center text-xs text-gray-500 mt-2">
+                  You can update your profile anytime
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Modern Graphic Element */}
+          <div className="hidden lg:flex rounded-2xl border border-gray-100 bg-white p-8 shadow-xl flex-col items-center justify-center relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-100 via-purple-50 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 opacity-60" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100 via-purple-50 to-transparent rounded-full translate-y-1/2 -translate-x-1/2 opacity-60" />
+
+            <div className="text-center relative z-10">
+              {/* Modern Illustration */}
+              <div className="relative mb-8">
+                {/* Main circle with gradient border */}
+                <div className="w-36 h-36 mx-auto rounded-full p-1 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
+                  <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                    <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                      <Sparkles className="h-14 w-14 text-white" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating badges */}
+                <div className="absolute -top-1 right-4 w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg transform rotate-12">
+                  <CheckCircle className="h-5 w-5 text-white" />
+                </div>
+                <div className="absolute bottom-2 -left-2 w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shadow-md transform -rotate-12">
+                  <Globe className="h-4 w-4 text-white" />
+                </div>
+                <div className="absolute top-1/2 -right-4 w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-md">
+                  <Mail className="h-3 w-3 text-white" />
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                AI-Powered Marketing
+              </h3>
+              <p className="text-gray-500 mb-6 max-w-xs text-sm leading-relaxed">
+                Complete your profile to unlock personalized marketing strategies crafted specifically for your brand.
               </p>
+
+              {/* Modern Feature List */}
+              <div className="space-y-4 text-left max-w-xs mx-auto">
+                <div className="flex items-center p-3 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-100">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mr-3 shadow-sm">
+                    <span className="text-white text-xs font-bold">1</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Complete Profile</p>
+                    <p className="text-xs text-gray-500">Add your business details</p>
+                  </div>
+                </div>
+                <div className="flex items-center p-3 rounded-xl bg-gradient-to-r from-purple-50 to-purple-100/50 border border-purple-100">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mr-3 shadow-sm">
+                    <span className="text-white text-xs font-bold">2</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">AI Brand Interview</p>
+                    <p className="text-xs text-gray-500">Tell us about your brand</p>
+                  </div>
+                </div>
+                <div className="flex items-center p-3 rounded-xl bg-gradient-to-r from-pink-50 to-pink-100/50 border border-pink-100">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mr-3 shadow-sm">
+                    <span className="text-white text-xs font-bold">3</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Get Content</p>
+                    <p className="text-xs text-gray-500">Receive tailored strategies</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

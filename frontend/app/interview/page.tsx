@@ -319,13 +319,15 @@ export default function InterviewPage() {
             <div className="mt-4 flex space-x-4">
               <button
                 onClick={() => router.push("/strategy")}
-                className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700"
+                className="rounded-lg bg-green-600 px-6 py-2 font-medium hover:bg-green-700"
+                style={{ color: "#ffffff" }}
               >
                 View Marketing Strategy
               </button>
               <button
                 onClick={() => router.push("/content")}
-                className="rounded-lg border border-green-600 px-6 py-2 text-green-600 hover:bg-green-50"
+                className="rounded-lg border-2 border-green-600 bg-white px-6 py-2 font-medium hover:bg-green-50"
+                style={{ color: "#16a34a" }}
               >
                 View Generated Content
               </button>
@@ -410,8 +412,7 @@ export default function InterviewPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Brand Interview</h1>
           <p className="mt-2 text-gray-600">
-            Tell me about your brand, and I'll help create your marketing
-            strategy
+            Tell me about your brand, and I'll help create your marketing strategy
           </p>
         </div>
 
@@ -422,218 +423,213 @@ export default function InterviewPage() {
           </div>
         )}
 
-        {/* Recording Interface */}
-        <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-col items-center space-y-6">
-            {/* Status Indicator */}
-            <div className="flex items-center space-x-2">
-              {phase === "idle" && (
-                <p className="text-gray-500">Ready to start interview</p>
-              )}
-              {phase === "processing" && (
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="font-medium">Processing...</span>
-                </div>
-              )}
-              {phase === "waiting" && !isSpeaking && (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <Volume2 className="h-5 w-5" />
-                  <span className="font-medium">
-                    Ready - Click to respond
-                  </span>
-                </div>
-              )}
-              {phase === "waiting" && isSpeaking && (
-                <div className="flex items-center space-x-2 text-purple-600">
-                  <Volume2 className="h-5 w-5 animate-pulse" />
-                  <span className="font-medium">
-                    AI is speaking...
-                  </span>
-                </div>
-              )}
-              {phase === "recording" && (
-                <div className="flex items-center space-x-2 text-red-600">
-                  <div className="h-3 w-3 animate-pulse rounded-full bg-red-600" />
-                  <span className="font-medium">
-                    Recording... {formatDuration(duration)}
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Interview Controls */}
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col items-center space-y-6">
+              {/* Status Indicator */}
+              <div className="flex items-center space-x-2">
+                {phase === "idle" && (
+                  <p className="text-gray-500">Ready to start interview</p>
+                )}
+                {phase === "processing" && (
+                  <div className="flex items-center space-x-2 text-blue-600">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="font-medium">Processing...</span>
+                  </div>
+                )}
+                {phase === "waiting" && !isSpeaking && (
+                  <div className="flex items-center space-x-2 text-green-600">
+                    <Volume2 className="h-5 w-5" />
+                    <span className="font-medium">Ready - Click to respond</span>
+                  </div>
+                )}
+                {phase === "waiting" && isSpeaking && (
+                  <div className="flex items-center space-x-2 text-purple-600">
+                    <Volume2 className="h-5 w-5 animate-pulse" />
+                    <span className="font-medium">AI is speaking...</span>
+                  </div>
+                )}
+                {phase === "recording" && (
+                  <div className="flex items-center space-x-2 text-red-600">
+                    <div className="h-3 w-3 animate-pulse rounded-full bg-red-600" />
+                    <span className="font-medium">Recording... {formatDuration(duration)}</span>
+                  </div>
+                )}
+              </div>
 
-            {/* Audio Waveform */}
-            {(phase === "recording" || phase === "waiting") && (
-              <AudioWaveform
-                audioLevel={audioLevel}
-                isRecording={isRecording}
-                isPaused={isPaused}
-              />
-            )}
+              {/* Audio Waveform */}
+              {(phase === "recording" || phase === "waiting") && (
+                <AudioWaveform
+                  audioLevel={audioLevel}
+                  isRecording={isRecording}
+                  isPaused={isPaused}
+                />
+              )}
 
-            {/* Main Action Buttons */}
-            <div className="flex items-center space-x-4">
+              {/* Main Action Buttons */}
+              <div className="flex items-center space-x-4">
+                {phase === "idle" && (
+                  <button
+                    onClick={handleStartInterview}
+                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 transition-all hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg"
+                  >
+                    <Mic className="h-8 w-8 text-white" />
+                  </button>
+                )}
+
+                {phase === "waiting" && (
+                  <button
+                    onClick={handleStartRecording}
+                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 transition-all hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg"
+                  >
+                    <Mic className="h-8 w-8 text-white" />
+                  </button>
+                )}
+
+                {phase === "recording" && (
+                  <>
+                    <button
+                      onClick={isPaused ? resumeRecording : pauseRecording}
+                      className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500 transition-all hover:bg-yellow-600"
+                    >
+                      {isPaused ? (
+                        <Play className="h-6 w-6 text-white" />
+                      ) : (
+                        <Pause className="h-6 w-6 text-white" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleStopRecording}
+                      className="flex h-20 w-20 items-center justify-center rounded-full bg-red-600 transition-all hover:bg-red-700 hover:scale-105 shadow-lg"
+                    >
+                      <Square className="h-8 w-8 text-white" />
+                    </button>
+                  </>
+                )}
+
+                {phase === "processing" && (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-400">
+                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+
+              {/* Current Question Display */}
+              {currentQuestion && (
+                <div className="w-full rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-5 border border-blue-100">
+                  <div className="mb-2 flex items-center space-x-2">
+                    <span className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-2 py-1 text-xs font-medium text-white">
+                      AI
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {questionCategory.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="text-base text-gray-800">{currentQuestion}</p>
+                </div>
+              )}
+
+              {/* Idle state message */}
               {phase === "idle" && (
+                <div className="w-full rounded-lg bg-gradient-to-r from-gray-50 to-blue-50 p-6 text-center border border-gray-100">
+                  <p className="text-lg text-gray-700">Please talk to me about your brand</p>
+                  <p className="mt-2 text-sm text-gray-500">Click the microphone to begin</p>
+                </div>
+              )}
+
+              {/* Instructions */}
+              <div className="text-center text-sm text-gray-500">
+                <p>Duration: ~30 minutes</p>
+                <p>The AI will ask follow-up questions about your business</p>
+              </div>
+
+              {/* Complete Interview Button */}
+              {questionsAnswered >= 3 && phase === "waiting" && (
                 <button
-                  onClick={handleStartInterview}
-                  className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 transition-all hover:bg-blue-700 hover:scale-105"
+                  onClick={handleCompleteInterview}
+                  className="w-full rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 text-white hover:from-green-700 hover:to-emerald-700 font-medium shadow-md"
                 >
-                  <Mic className="h-8 w-8 text-white" />
+                  Complete Interview & Generate Strategy
                 </button>
               )}
-
-              {phase === "waiting" && (
-                <button
-                  onClick={handleStartRecording}
-                  className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 transition-all hover:bg-blue-700 hover:scale-105"
-                >
-                  <Mic className="h-8 w-8 text-white" />
-                </button>
-              )}
-
-              {phase === "recording" && (
-                <>
-                  <button
-                    onClick={isPaused ? resumeRecording : pauseRecording}
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500 transition-all hover:bg-yellow-600"
-                  >
-                    {isPaused ? (
-                      <Play className="h-6 w-6 text-white" />
-                    ) : (
-                      <Pause className="h-6 w-6 text-white" />
-                    )}
-                  </button>
-                  <button
-                    onClick={handleStopRecording}
-                    className="flex h-20 w-20 items-center justify-center rounded-full bg-red-600 transition-all hover:bg-red-700 hover:scale-105"
-                  >
-                    <Square className="h-8 w-8 text-white" />
-                  </button>
-                </>
-              )}
-
-              {phase === "processing" && (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-400">
-                  <Loader2 className="h-8 w-8 animate-spin text-white" />
-                </div>
-              )}
-            </div>
-
-            {/* Current Question Display */}
-            {currentQuestion && (
-              <div className="w-full max-w-2xl rounded-lg bg-blue-50 p-6">
-                <div className="mb-2 flex items-center space-x-2">
-                  <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-medium text-white">
-                    AI
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {questionCategory.replace("_", " ")}
-                  </span>
-                </div>
-                <p className="text-lg text-gray-800">{currentQuestion}</p>
-              </div>
-            )}
-
-            {/* Idle state message */}
-            {phase === "idle" && (
-              <div className="w-full max-w-2xl rounded-lg bg-gray-50 p-6 text-center">
-                <p className="text-lg text-gray-700">
-                  Please talk to me about your brand
-                </p>
-                <p className="mt-2 text-sm text-gray-500">
-                  Click the microphone to begin
-                </p>
-              </div>
-            )}
-
-            {/* Instructions */}
-            <div className="text-center text-sm text-gray-500">
-              <p>Duration: ~30 minutes</p>
-              <p>The AI will ask follow-up questions about your business</p>
             </div>
           </div>
-        </div>
 
-        {/* Conversation History */}
-        {messages.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 font-medium text-gray-900">
-              Conversation History
-            </h3>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    message.role === "ai" ? "justify-start" : "justify-end"
-                  }`}
-                >
+          {/* Right Column - Transcript & Progress */}
+          <div className="space-y-4">
+            {/* Progress Indicator */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 font-medium text-gray-900">Interview Progress</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700">Questions Answered</span>
+                  <span className="font-medium text-gray-900">{questionsAnswered} / 9</span>
+                </div>
+                <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
                   <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
-                      message.role === "ai"
-                        ? "bg-blue-50 text-gray-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center space-x-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    className="h-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-300"
+                    style={{ width: `${(questionsAnswered / 9) * 100}%` }}
+                  />
+                </div>
+              </div>
+              {phase !== "idle" && (
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Recording Time</span>
+                  <span className="font-medium text-blue-600">{formatDuration(duration)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Live Transcript */}
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 380px)", minHeight: "400px" }}>
+              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50">
+                <h3 className="font-medium text-gray-900">Live Transcript</h3>
+                <p className="text-xs text-gray-500">{messages.length} messages</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                    <Mic className="h-12 w-12 mb-2 opacity-30" />
+                    <p className="text-sm">Start the interview to see transcript</p>
+                  </div>
+                ) : (
+                  messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.role === "ai" ? "justify-start" : "justify-end"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-lg p-3 ${
                           message.role === "ai"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-600 text-white"
+                            ? "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100"
+                            : "bg-gray-100"
                         }`}
                       >
-                        {message.role === "ai" ? "AI" : "You"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {message.timestamp.toLocaleTimeString()}
-                      </span>
+                        <div className="mb-1 flex items-center space-x-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              message.role === "ai"
+                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                : "bg-gray-600 text-white"
+                            }`}
+                          >
+                            {message.role === "ai" ? "AI" : "You"}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {message.timestamp.toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800">{message.content}</p>
+                      </div>
                     </div>
-                    <p className="text-sm">{message.content}</p>
-                  </div>
-                </div>
-              ))}
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Progress Indicator */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 font-medium text-gray-900">Interview Progress</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700">Questions Answered</span>
-              <span className="font-medium text-gray-900">
-                {questionsAnswered} / 9
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${(questionsAnswered / 9) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Duration */}
-          {phase !== "idle" && (
-            <div className="mt-4 text-sm text-gray-700">
-              Total recording time: {formatDuration(duration)}
-            </div>
-          )}
         </div>
-
-        {/* Complete Interview Button */}
-        {questionsAnswered >= 3 && phase === "waiting" && (
-          <div className="flex justify-center">
-            <button
-              onClick={handleCompleteInterview}
-              className="rounded-lg bg-green-600 px-6 py-3 text-white hover:bg-green-700"
-            >
-              Complete Interview & Generate Strategy
-            </button>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );

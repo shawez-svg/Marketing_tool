@@ -475,9 +475,9 @@ export default function ContentPage() {
         <div className="flex space-x-2 overflow-x-auto border-b border-gray-200 pb-2">
           <button
             onClick={() => setSelectedPlatform("all")}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
               selectedPlatform === "all"
-                ? "bg-gray-900 text-white"
+                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
@@ -489,9 +489,9 @@ export default function ContentPage() {
               <button
                 key={platform.name}
                 onClick={() => setSelectedPlatform(platform.name)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
                   selectedPlatform === platform.name
-                    ? "bg-gray-900 text-white"
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
@@ -576,14 +576,14 @@ export default function ContentPage() {
                     <>
                       <button
                         onClick={handleSaveEdit}
-                        className="flex items-center space-x-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700"
+                        className="flex items-center space-x-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 cursor-pointer transition-all"
                       >
                         <Save className="h-4 w-4" />
                         <span>Save</span>
                       </button>
                       <button
                         onClick={() => setEditingPostId(null)}
-                        className="flex items-center space-x-1 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+                        className="flex items-center space-x-1 rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-all"
                       >
                         <X className="h-4 w-4" />
                         <span>Cancel</span>
@@ -593,7 +593,7 @@ export default function ContentPage() {
                     <>
                       <button
                         onClick={() => handleEdit(post)}
-                        className="flex items-center space-x-1 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+                        className="flex items-center space-x-1 rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-all"
                       >
                         <Edit className="h-4 w-4" />
                         <span>Edit</span>
@@ -601,23 +601,24 @@ export default function ContentPage() {
                       <button
                         onClick={() => handleRegenerate(post.id)}
                         disabled={isRegenerating}
-                        className="flex items-center space-x-1 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+                        className="flex items-center space-x-1 rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2 text-sm font-medium hover:bg-blue-100 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ color: "#2563eb" }}
                       >
-                        <RefreshCw className={`h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} />
-                        <span>Regenerate</span>
+                        <RefreshCw className={`h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} style={{ color: "#2563eb" }} />
+                        <span style={{ color: "#2563eb" }}>Regenerate</span>
                       </button>
                       {post.status === "draft" && (
                         <>
                           <button
                             onClick={() => handleApprove(post.id)}
-                            className="flex items-center space-x-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700"
+                            className="flex items-center space-x-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 cursor-pointer transition-all"
                           >
                             <CheckCircle className="h-4 w-4" />
                             <span>Approve</span>
                           </button>
                           <button
                             onClick={() => handleReject(post.id)}
-                            className="flex items-center space-x-1 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 hover:bg-red-200"
+                            className="flex items-center space-x-1 rounded-lg bg-red-100 px-3 py-2 text-sm text-red-700 hover:bg-red-200 cursor-pointer transition-all"
                           >
                             <XCircle className="h-4 w-4" />
                             <span>Reject</span>
@@ -626,7 +627,7 @@ export default function ContentPage() {
                       )}
                       <button
                         onClick={() => handleDelete(post.id)}
-                        className="flex items-center space-x-1 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        className="flex items-center space-x-1 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition-all"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

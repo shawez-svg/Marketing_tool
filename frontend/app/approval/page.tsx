@@ -339,9 +339,9 @@ export default function ApprovalPage() {
           </div>
           <button
             onClick={() => router.push("/content")}
-            className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
-            Back to Content
+            <span>Back to Content</span>
           </button>
         </div>
 
@@ -407,24 +407,24 @@ export default function ApprovalPage() {
 
         {/* Settings Panel */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between max-w-md">
             <div className="flex items-center space-x-3">
-              <SettingsIcon className="h-5 w-5 text-gray-600" />
+              <SettingsIcon className="h-5 w-5 text-blue-600" />
               <div>
                 <h3 className="font-medium text-gray-900">Auto-Approval</h3>
-                <p className="text-sm text-gray-500">
-                  Automatically approve and schedule generated content
+                <p className="text-xs text-gray-500">
+                  Auto-approve & schedule content
                 </p>
               </div>
             </div>
             <button
               onClick={() => setAutoApproval(!autoApproval)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                autoApproval ? "bg-blue-600" : "bg-gray-200"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                autoApproval ? "bg-gradient-to-r from-blue-600 to-purple-600" : "bg-gray-200"
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
                   autoApproval ? "translate-x-6" : "translate-x-1"
                 }`}
               />
@@ -438,16 +438,16 @@ export default function ApprovalPage() {
             <button
               key={option.value}
               onClick={() => setSelectedStatus(option.value)}
-              className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer ${
                 selectedStatus === option.value
-                  ? "bg-gray-900 text-white"
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               <span>{option.label}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-xs ${
-                  selectedStatus === option.value ? "bg-white/20" : "bg-gray-200"
+                  selectedStatus === option.value ? "bg-white/30 text-white" : "bg-gray-200 text-gray-600"
                 }`}
               >
                 {option.count}

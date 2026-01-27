@@ -3,6 +3,22 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Brand Color Palette */
+  --brand-primary: #2563eb;
+  --brand-primary-dark: #1d4ed8;
+  --brand-primary-light: #3b82f6;
+  --brand-secondary: #7c3aed;
+  --brand-secondary-dark: #6d28d9;
+  --brand-accent: #06b6d4;
+  --brand-success: #16a34a;
+  --brand-warning: #f59e0b;
+  --brand-error: #dc2626;
+
+  /* Gradient Colors */
+  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  --gradient-sidebar: linear-gradient(135deg, #1e40af 0%, #5b21b6 100%);
+  --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
 }
 
 @theme inline {
@@ -202,5 +218,109 @@ li {
 
 /* Fix any remaining white text issues */
 [class*="text-white"] {
+  color: #ffffff !important;
+}
+
+/* ============================================
+   BRAND THEME ENHANCEMENTS
+   ============================================ */
+
+/* Sidebar selected item with gradient */
+.sidebar-item-active {
+  background: var(--gradient-sidebar) !important;
+  color: #ffffff !important;
+}
+
+/* CTA Buttons - pointer cursor on hover */
+button,
+[role="button"],
+.btn,
+a[class*="bg-"] {
+  cursor: pointer;
+}
+
+button:hover,
+[role="button"]:hover {
+  cursor: pointer;
+}
+
+/* Active/clicked state for buttons */
+button:active {
+  cursor: pointer;
+  transform: scale(0.98);
+}
+
+/* Fix filter buttons visibility when selected */
+button[class*="bg-blue"]:not(:disabled),
+button[class*="bg-green"]:not(:disabled),
+button[class*="bg-purple"]:not(:disabled) {
+  color: #ffffff !important;
+}
+
+/* Selected filter styling - ensure visibility */
+.filter-selected,
+button[aria-pressed="true"],
+button[data-selected="true"] {
+  background-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--brand-primary) !important;
+}
+
+/* Fix filter button text when active/selected */
+button.bg-blue-100 {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+button.bg-blue-600,
+button.bg-blue-700 {
+  color: #ffffff !important;
+}
+
+/* Consistent hover states for all interactive elements */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+/* Brand gradient backgrounds */
+.bg-gradient-primary {
+  background: var(--gradient-primary) !important;
+}
+
+.bg-gradient-sidebar {
+  background: var(--gradient-sidebar) !important;
+}
+
+/* Fix toggle switch visibility */
+input[type="checkbox"]:checked + span,
+input[type="checkbox"]:checked + div {
+  background-color: var(--brand-primary) !important;
+}
+
+/* Ensure all colored backgrounds maintain text visibility */
+[class*="bg-blue-50"],
+[class*="bg-blue-100"] {
+  color: #1e40af !important;
+}
+
+[class*="bg-green-50"],
+[class*="bg-green-100"] {
+  color: #166534 !important;
+}
+
+[class*="bg-purple-50"],
+[class*="bg-purple-100"] {
+  color: #6b21a8 !important;
+}
+
+[class*="bg-pink-50"],
+[class*="bg-pink-100"] {
+  color: #9d174d !important;
+}
+
+/* Ensure selected states don't turn white/invisible */
+.selected-visible {
+  background-color: var(--brand-primary) !important;
   color: #ffffff !important;
 }

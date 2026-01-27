@@ -60,8 +60,8 @@ export function Sidebar() {
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-gray-50">
       {/* Logo/Header */}
-      <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-xl font-bold text-gray-900">
+      <div className="flex h-16 items-center border-b px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <h1 className="text-xl font-bold text-white">
           Content AI
         </h1>
       </div>
@@ -77,29 +77,22 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-md"
+                  : "hover:bg-blue-50"
               )}
+              style={{ color: isActive ? "#ffffff" : "#374151" }}
             >
               <Icon
-                className={cn(
-                  "mr-3 h-5 w-5 flex-shrink-0",
-                  isActive
-                    ? "text-white"
-                    : "text-gray-400 group-hover:text-gray-600"
-                )}
+                className="mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+                style={{ color: isActive ? "#ffffff" : "#9ca3af" }}
               />
               <div className="flex-1">
-                <div>{item.name}</div>
+                <div style={{ color: isActive ? "#ffffff" : "#374151" }}>{item.name}</div>
                 <div
-                  className={cn(
-                    "text-xs",
-                    isActive
-                      ? "text-gray-300"
-                      : "text-gray-500 group-hover:text-gray-600"
-                  )}
+                  className="text-xs transition-colors"
+                  style={{ color: isActive ? "#bfdbfe" : "#6b7280" }}
                 >
                   {item.description}
                 </div>
@@ -114,28 +107,28 @@ export function Sidebar() {
         <Link
           href="/settings"
           className={cn(
-            "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
             pathname === "/settings"
-              ? "bg-gray-900 text-white"
-              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-md"
+              : "hover:bg-blue-50"
           )}
+          style={{ color: pathname === "/settings" ? "#ffffff" : "#374151" }}
         >
           <Settings
-            className={cn(
-              "mr-3 h-5 w-5 flex-shrink-0",
-              pathname === "/settings"
-                ? "text-white"
-                : "text-gray-400 group-hover:text-gray-600"
-            )}
+            className="mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+            style={{ color: pathname === "/settings" ? "#ffffff" : "#9ca3af" }}
           />
-          Settings & Profile
+          <span style={{ color: pathname === "/settings" ? "#ffffff" : "#374151" }}>
+            Settings & Profile
+          </span>
         </Link>
         <button
           onClick={handleLogout}
-          className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-red-50 hover:text-red-700"
+          className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-red-50"
+          style={{ color: "#374151" }}
         >
-          <LogOut className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-red-600" />
-          Logout
+          <LogOut className="mr-3 h-5 w-5 flex-shrink-0" style={{ color: "#9ca3af" }} />
+          <span style={{ color: "#374151" }}>Logout</span>
         </button>
       </div>
     </div>

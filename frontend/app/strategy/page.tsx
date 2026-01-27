@@ -280,13 +280,16 @@ export default function StrategyPage() {
     try {
       // Check if there's a new interview that needs a strategy
       const currentInterviewId = localStorage.getItem("interviewId");
+      console.log("[Strategy] Current interview ID:", currentInterviewId);
 
       // Try to get the latest strategy
       let data: Strategy | null = null;
       try {
         data = await strategyApi.getLatestStrategy();
+        console.log("[Strategy] Got existing strategy:", data?.id);
       } catch (err: any) {
-        if (err.response?.status !== 404) {
+        console.log("[Strategy] Error getting latest:", err.response?.status, err.message);
+        if (err.response?.status !== 404 && err.code !== "ERR_NETWORK") {
           throw err;
         }
       }
@@ -294,7 +297,7 @@ export default function StrategyPage() {
       // If we have a current interview ID and it doesn't match the strategy, generate new
       if (currentInterviewId) {
         if (!data || data.interview_id !== currentInterviewId) {
-          // New interview completed - generate fresh strategy
+          console.log("[Strategy] Need to generate new strategy");
           setLoading(false);
           await generateStrategyFromInterview(currentInterviewId);
           return;
@@ -307,7 +310,11 @@ export default function StrategyPage() {
         setError("No strategy found. Complete an interview first.");
       }
     } catch (err: any) {
-      setError("Failed to load strategy. Please try again.");
+      console.error("[Strategy] Load error:", err);
+      const isNetworkError = err.code === "ERR_NETWORK" || err.message?.includes("Network");
+      setError(isNetworkError
+        ? "Cannot connect to backend. Please ensure the server is running."
+        : "Failed to load strategy. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -315,11 +322,19 @@ export default function StrategyPage() {
 
   const generateStrategyFromInterview = async (interviewId: string) => {
     setGenerating(true);
+    setError(null);
     try {
+      console.log("[Strategy] Generating for interview:", interviewId);
       const data = await strategyApi.generateStrategy(interviewId);
+      console.log("[Strategy] Generated successfully:", data?.id);
       setStrategy(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to generate strategy.");
+      console.error("[Strategy] Generation error:", err);
+      const isNetworkError = err.code === "ERR_NETWORK" || err.message?.includes("Network");
+      const errorMessage = isNetworkError
+        ? "Cannot connect to backend. Please ensure the server is running."
+        : err.response?.data?.detail || "Failed to generate strategy. Please try again.";
+      setError(errorMessage);
     } finally {
       setGenerating(false);
     }
@@ -370,50 +385,53 @@ export default function StrategyPage() {
               const id = localStorage.getItem("interviewId");
               if (id) generateStrategyFromInterview(id);
             }}
-            className="flex items-center space-x-2 rounded-lg border px-4 py-2 hover:bg-gray-50"
+            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             <RefreshCw className="h-4 w-4" />
             <span>Regenerate</span>
           </button>
         </div>
 
-        {/* Brand Summary */}
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center space-x-2">
-            <Target className="h-5 w-5 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Brand Profile</h2>
+        {/* Brand Profile & Target Audience - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Brand Summary */}
+          <div className="rounded-lg border bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center space-x-2">
+              <Target className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-gray-900">Brand Profile</h2>
+            </div>
+            <p className="text-gray-700 whitespace-pre-line">{strategy.brand_summary}</p>
+            {strategy.value_proposition && (
+              <div className="mt-4 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-4 border border-blue-100">
+                <p className="font-medium text-blue-900">Value Proposition</p>
+                <p className="mt-1 text-blue-800">{strategy.value_proposition}</p>
+              </div>
+            )}
           </div>
-          <p className="text-gray-700 whitespace-pre-line">{strategy.brand_summary}</p>
-          {strategy.value_proposition && (
-            <div className="mt-4 rounded-lg bg-blue-50 p-4">
-              <p className="font-medium text-blue-900">Value Proposition</p>
-              <p className="mt-1 text-blue-800">{strategy.value_proposition}</p>
+
+          {/* Target Audience */}
+          {strategy.target_audience?.length > 0 && (
+            <div className="rounded-lg border bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center space-x-2">
+                <Users className="h-5 w-5 text-purple-600" />
+                <h2 className="text-xl font-semibold text-gray-900">Target Audience</h2>
+              </div>
+              <div className="space-y-3">
+                {strategy.target_audience.map((audience, i) => (
+                  <div key={i} className="rounded-lg bg-gradient-to-r from-gray-50 to-purple-50 p-4 border border-gray-100">
+                    <h3 className="font-semibold text-gray-900">{audience.persona_name}</h3>
+                    <p className="text-sm text-gray-600">{audience.demographics}</p>
+                    {audience.pain_points?.length > 0 && (
+                      <ul className="mt-2 list-inside list-disc text-sm text-gray-700">
+                        {audience.pain_points.map((p, j) => <li key={j}>{p}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
-
-        {/* Target Audience */}
-        {strategy.target_audience?.length > 0 && (
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center space-x-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">Target Audience</h2>
-            </div>
-            <div className="space-y-4">
-              {strategy.target_audience.map((audience, i) => (
-                <div key={i} className="rounded-lg bg-gray-50 p-4">
-                  <h3 className="font-semibold text-gray-900">{audience.persona_name}</h3>
-                  <p className="text-sm text-gray-600">{audience.demographics}</p>
-                  {audience.pain_points?.length > 0 && (
-                    <ul className="mt-2 list-inside list-disc text-sm text-gray-700">
-                      {audience.pain_points.map((p, j) => <li key={j}>{p}</li>)}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Recommended Channels */}
         {strategy.recommended_channels?.length > 0 && (

@@ -127,16 +127,18 @@ async def process_audio_chunk(
 async def get_next_question(
     interview_id: UUID,
     use_ai: bool = True,
+    user_response: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
     Get the next interview question
 
-    Can use AI for dynamic questions or fall back to predefined questions
+    Can use AI for dynamic questions or fall back to predefined questions.
+    Optionally accepts user_response to add to transcript before generating next question.
     """
     try:
         question_data = await interview_service.get_next_question(
-            db, interview_id, use_ai=use_ai
+            db, interview_id, use_ai=use_ai, user_response=user_response
         )
 
         # Add the question to the transcript

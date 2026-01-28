@@ -99,16 +99,22 @@ export const interviewApi = {
 
   /**
    * Get the next interview question
+   * @param interviewId - The interview ID
+   * @param useAi - Whether to use AI for generating questions
+   * @param userResponse - Optional user response to add to transcript
    */
   async getNextQuestion(
     interviewId: string,
-    useAi: boolean = true
+    useAi: boolean = true,
+    userResponse?: string
   ): Promise<NextQuestionResponse> {
+    const params: Record<string, string | boolean> = { use_ai: useAi };
+    if (userResponse) {
+      params.user_response = userResponse;
+    }
     const response = await api.get<NextQuestionResponse>(
       `/api/interview/${interviewId}/next-question`,
-      {
-        params: { use_ai: useAi },
-      }
+      { params }
     );
     return response.data;
   },

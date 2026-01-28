@@ -3,10 +3,10 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
-import { interviewApi, CompleteInterviewResponse } from "@/lib/interview-api";
-import { useState, useCallback } from "react";
+import { interviewApi, CompleteInterviewResponse, InterviewDetail } from "@/lib/interview-api";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Square, Pause, Play, CheckCircle, Loader2, Volume2, AlertCircle } from "lucide-react";
+import { Mic, Square, Pause, Play, CheckCircle, Loader2, Volume2, AlertCircle, FileText, ChevronDown, ChevronUp } from "lucide-react";
 
 // Demo mode configuration - set to true when backend is not available
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true" || !process.env.NEXT_PUBLIC_API_URL;
@@ -68,6 +68,65 @@ export default function InterviewPage() {
   const [analysis, setAnalysis] = useState<CompleteInterviewResponse | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // Previous interview state
+  const [previousInterview, setPreviousInterview] = useState<InterviewDetail | null>(null);
+  const [loadingPrevious, setLoadingPrevious] = useState(true);
+  const [showPreviousTranscript, setShowPreviousTranscript] = useState(true);
+
+  // Load previous interview on mount
+  useEffect(() => {
+    const loadPreviousInterview = async () => {
+      setLoadingPrevious(true);
+      let foundInterview: InterviewDetail | null = null;
+
+      try {
+        // First check localStorage for interview ID
+        const savedInterviewId = localStorage.getItem("interviewId");
+
+        if (savedInterviewId) {
+          // Try to fetch the specific interview
+          try {
+            const interview = await interviewApi.getInterview(savedInterviewId);
+            if (interview && interview.status === "completed" && interview.transcript) {
+              foundInterview = interview;
+            }
+          } catch (err) {
+            console.log("Could not fetch saved interview, trying to get latest...");
+          }
+        }
+
+        // If no saved interview or it failed, try to get the latest completed one
+        if (!foundInterview) {
+          try {
+            const interviews = await interviewApi.listInterviews();
+            const completedInterviews = interviews.filter(
+              (i) => i.status === "completed" && i.transcript
+            );
+            if (completedInterviews.length > 0) {
+              // Sort by created_at descending and get the most recent
+              completedInterviews.sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              );
+              foundInterview = completedInterviews[0];
+            }
+          } catch (err) {
+            console.log("Could not fetch interview list");
+          }
+        }
+
+        if (foundInterview) {
+          setPreviousInterview(foundInterview);
+        }
+      } catch (err) {
+        console.error("Error loading previous interview:", err);
+      } finally {
+        setLoadingPrevious(false);
+      }
+    };
+
+    loadPreviousInterview();
+  }, []);
+
   // Speak a question using TTS
   const speakQuestion = async (text: string) => {
     setIsSpeaking(true);
@@ -80,38 +139,9 @@ export default function InterviewPage() {
     }
   };
 
-  // Track transcriptions to avoid duplicates
-  const [lastTranscription, setLastTranscription] = useState<string>("");
-
-  // Audio recorder hook - only send to backend, don't add to messages yet
-  const handleAudioChunk = useCallback(
-    async (chunk: Blob) => {
-      if (!interviewId || isProcessing) return;
-
-      setIsProcessing(true);
-      try {
-        const result = await interviewApi.sendAudioChunk(interviewId, chunk);
-
-        // Store the transcription but don't add to messages yet
-        // Messages will be added in handleStopRecording to avoid duplicates
-        if (result.transcription) {
-          setLastTranscription((prev) => {
-            // Append new transcription if it's different
-            if (result.transcription && !prev.includes(result.transcription)) {
-              return prev ? `${prev} ${result.transcription}` : result.transcription;
-            }
-            return prev;
-          });
-        }
-      } catch (err) {
-        console.error("Failed to process audio chunk:", err);
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [interviewId, isProcessing]
-  );
-
+  // Audio recorder hook - no intermediate chunk processing to avoid duplicates
+  // The useAudioRecorder sends cumulative audio (not incremental), so each chunk
+  // contains all audio from the start. We only process once when recording stops.
   const {
     isRecording,
     isPaused,
@@ -123,7 +153,7 @@ export default function InterviewPage() {
     resumeRecording,
     getAudioChunk,
     error: recorderError,
-  } = useAudioRecorder(handleAudioChunk, 10000);
+  } = useAudioRecorder();
 
   // Start interview
   const handleStartInterview = async () => {
@@ -178,50 +208,42 @@ export default function InterviewPage() {
     }
 
     try {
-      // Get the final audio chunk before stopping
-      const finalChunk = await getAudioChunk();
+      // Get the complete audio recording before stopping
+      const audioBlob = await getAudioChunk();
 
       // Stop recording now
       stopRecording();
 
-      let finalTranscription = lastTranscription;
+      let transcription = "";
 
-      // Send the final audio chunk if we have one
-      if (finalChunk && finalChunk.size > 0) {
+      // Send the complete audio for transcription
+      if (audioBlob && audioBlob.size > 0) {
         try {
-          const result = await interviewApi.sendAudioChunk(interviewId, finalChunk);
-
-          // Append final chunk transcription if it's new
-          if (result.transcription && !finalTranscription.includes(result.transcription)) {
-            finalTranscription = finalTranscription
-              ? `${finalTranscription} ${result.transcription}`
-              : result.transcription;
-          }
+          const result = await interviewApi.sendAudioChunk(interviewId, audioBlob);
+          transcription = result.transcription || "";
         } catch (audioErr) {
-          console.error("Failed to send final audio chunk:", audioErr);
+          console.error("Failed to transcribe audio:", audioErr);
         }
       }
 
-      // Add user message to UI (combined transcription from all chunks)
-      if (finalTranscription.trim()) {
+      // Add user message to UI
+      if (transcription.trim()) {
         setMessages((prev) => [
           ...prev,
           {
             role: "user",
-            content: finalTranscription.trim(),
+            content: transcription.trim(),
             timestamp: new Date(),
           },
         ]);
       }
 
-      // Reset transcription tracker for next recording
-      setLastTranscription("");
-
-      // Small delay to ensure backend has processed the audio
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Get next question
-      const nextQuestion = await interviewApi.getNextQuestion(interviewId, true);
+      // Get next question - pass the transcription to be saved to transcript
+      const nextQuestion = await interviewApi.getNextQuestion(
+        interviewId,
+        true,
+        transcription.trim() || undefined
+      );
 
       setCurrentQuestion(nextQuestion.question);
       setQuestionCategory(nextQuestion.category);
@@ -319,15 +341,13 @@ export default function InterviewPage() {
             <div className="mt-4 flex space-x-4">
               <button
                 onClick={() => router.push("/strategy")}
-                className="rounded-lg bg-green-600 px-6 py-2 font-medium hover:bg-green-700"
-                style={{ color: "#ffffff" }}
+                className="rounded-lg bg-green-600 px-6 py-2 font-medium text-white hover:bg-green-700"
               >
                 View Marketing Strategy
               </button>
               <button
                 onClick={() => router.push("/content")}
-                className="rounded-lg border-2 border-green-600 bg-white px-6 py-2 font-medium hover:bg-green-50"
-                style={{ color: "#16a34a" }}
+                className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700"
               >
                 View Generated Content
               </button>
@@ -582,17 +602,97 @@ export default function InterviewPage() {
               )}
             </div>
 
-            {/* Live Transcript */}
+            {/* Transcript Section */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 380px)", minHeight: "400px" }}>
+              {/* Header - changes based on state */}
               <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50">
-                <h3 className="font-medium text-gray-900">Live Transcript</h3>
-                <p className="text-xs text-gray-500">{messages.length} messages</p>
+                {phase === "idle" && messages.length === 0 && previousInterview ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <h3 className="font-medium text-gray-900">Previous Interview</h3>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {new Date(previousInterview.created_at).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowPreviousTranscript(!showPreviousTranscript)}
+                      className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <span>{showPreviousTranscript ? "Hide" : "Show"}</span>
+                      {showPreviousTranscript ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="font-medium text-gray-900">Live Transcript</h3>
+                    <p className="text-xs text-gray-500">{messages.length} messages</p>
+                  </div>
+                )}
               </div>
+
+              {/* Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.length === 0 ? (
+                {/* Show previous interview transcript when idle */}
+                {phase === "idle" && messages.length === 0 ? (
+                  loadingPrevious ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                      <p className="text-sm">Loading previous interview...</p>
+                    </div>
+                  ) : previousInterview && showPreviousTranscript ? (
+                    <div className="space-y-4">
+                      {/* Transcript content */}
+                      <div className="rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-4 border border-blue-100">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <span className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-2 py-1 text-xs font-medium text-white">
+                            Transcript
+                          </span>
+                          {previousInterview.duration_seconds && (
+                            <span className="text-xs text-gray-500">
+                              Duration: {formatDuration(previousInterview.duration_seconds)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed max-h-[50vh] overflow-y-auto">
+                          {previousInterview.transcript}
+                        </div>
+                      </div>
+
+                      {/* Action hint */}
+                      <div className="text-center py-4 border-t border-gray-100">
+                        <p className="text-sm text-gray-500">
+                          Click the microphone above to start a new interview
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <Mic className="h-12 w-12 mb-2 opacity-30" />
+                      <p className="text-sm">
+                        {previousInterview && !showPreviousTranscript
+                          ? "Previous transcript hidden"
+                          : "No previous interview found"}
+                      </p>
+                      <p className="text-xs mt-1">Start the interview to see transcript</p>
+                    </div>
+                  )
+                ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
                     <Mic className="h-12 w-12 mb-2 opacity-30" />
-                    <p className="text-sm">Start the interview to see transcript</p>
+                    <p className="text-sm">Recording will appear here</p>
                   </div>
                 ) : (
                   messages.map((message, index) => (

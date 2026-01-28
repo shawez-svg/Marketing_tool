@@ -106,18 +106,13 @@ class InterviewService:
 
         transcribed_text = transcription_result.get("text", "")
 
-        # Update transcript
-        if transcribed_text:
-            if interview.transcript:
-                interview.transcript += f"\n\nUser: {transcribed_text}"
-            else:
-                interview.transcript = f"User: {transcribed_text}"
-
-            db.commit()
+        # Don't add to transcript here - let the frontend accumulate all chunks
+        # and send the complete response when the user finishes speaking.
+        # This prevents duplicate entries from overlapping audio chunks.
 
         return {
             "transcription": transcribed_text,
-            "full_transcript": interview.transcript,
+            "full_transcript": interview.transcript or "",
         }
 
     async def get_next_question(
@@ -125,6 +120,7 @@ class InterviewService:
         db: Session,
         interview_id: UUID,
         use_ai: bool = True,
+        user_response: Optional[str] = None,
     ) -> Dict[str, str]:
         """
         Get the next interview question
@@ -133,6 +129,7 @@ class InterviewService:
             db: Database session
             interview_id: Interview ID
             use_ai: Whether to use AI for dynamic questions
+            user_response: Optional user response to add to transcript
 
         Returns:
             dict with question and category
@@ -140,6 +137,15 @@ class InterviewService:
         interview = db.query(Interview).filter(Interview.id == interview_id).first()
         if not interview:
             raise ValueError(f"Interview {interview_id} not found")
+
+        # Add user response to transcript if provided
+        if user_response and user_response.strip():
+            if interview.transcript:
+                interview.transcript += f"\n\nUser: {user_response.strip()}"
+            else:
+                interview.transcript = f"User: {user_response.strip()}"
+            db.commit()
+            db.refresh(interview)
 
         # Parse transcript to count Q&A exchanges
         transcript = interview.transcript or ""

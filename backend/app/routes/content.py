@@ -77,6 +77,10 @@ class PostingResponse(BaseModel):
     message: Optional[str] = None
     error: Optional[str] = None
     simulated: bool = False
+    scheduled_time: Optional[str] = None
+    requires_media: bool = False
+
+    model_config = {"extra": "ignore"}
 
 
 class BulkPostRequest(BaseModel):
@@ -85,6 +89,7 @@ class BulkPostRequest(BaseModel):
 
 class ScheduleWithPostingRequest(BaseModel):
     scheduled_time: datetime
+    timezone: str = "UTC"
 
 
 # Temporary: hardcoded user ID for development
@@ -324,7 +329,7 @@ async def bulk_approve_posts(
 
 
 # ============================================================
-# POSTING ENDPOINTS - Actual social media posting via Ayrshare
+# POSTING ENDPOINTS - Actual social media posting via Late
 # ============================================================
 
 
@@ -336,7 +341,7 @@ async def post_now(
     """
     Post content immediately to social media.
 
-    Uses Ayrshare API to publish the post to the specified platform.
+    Uses Late API to publish the post to the specified platform.
     If no API key is configured, simulates posting for development.
     """
     try:
@@ -355,12 +360,12 @@ async def schedule_post_to_platform(
     db: Session = Depends(get_db),
 ):
     """
-    Schedule a post for future posting via Ayrshare.
+    Schedule a post for future posting via Late.
 
     The post will be published automatically at the scheduled time.
     """
     try:
-        result = await posting_service.schedule_post(db, post_id, request.scheduled_time)
+        result = await posting_service.schedule_post(db, post_id, request.scheduled_time, request.timezone)
         return PostingResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -376,7 +381,7 @@ async def cancel_scheduled_post(
     """
     Cancel a scheduled post.
 
-    Removes the post from the Ayrshare schedule and sets status back to draft.
+    Removes the post from the Late schedule and sets status back to draft.
     """
     try:
         result = await posting_service.delete_scheduled_post(db, post_id)
@@ -429,7 +434,7 @@ async def get_connected_accounts():
     """
     Get list of connected social media accounts.
 
-    Returns the social accounts connected via Ayrshare.
+    Returns the social accounts connected via Late.
     """
     result = await posting_service.get_user_social_accounts()
     return result
@@ -489,76 +494,6 @@ async def generate_image_for_post(
             )
 
         # Update the post with the image URL
-        post.content_media_url = result["image_url"]
-        db.commit()
-        db.refresh(post)
-
-        return {
-            "success": True,
-            "post_id": str(post.id),
-            "image_url": result["image_url"],
-            "revised_prompt": result.get("revised_prompt"),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
-
-
-# ============================================================
-# IMAGE GENERATION ENDPOINTS - AI image generation for posts
-# ============================================================
-
-
-@router.post("/generate-image")
-async def generate_image(request: GenerateImageRequest):
-    """
-    Generate an AI image for a social media post using DALL-E 3.
-
-    This is useful for platforms like Instagram that require images.
-    Returns a URL to the generated image.
-    """
-    try:
-        result = await image_service.generate_social_media_image(
-            post_content=request.post_content,
-            platform=request.platform,
-            brand_context=request.brand_context,
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
-
-
-@router.post("/{post_id}/generate-image")
-async def generate_image_for_post(
-    post_id: UUID,
-    db: Session = Depends(get_db),
-):
-    """
-    Generate an AI image for a specific post and attach it.
-
-    Generates an image based on the post content and updates the post
-    with the generated image URL.
-    """
-    try:
-        # Get the post
-        post = db.query(Post).filter(Post.id == post_id).first()
-        if not post:
-            raise HTTPException(status_code=404, detail="Post not found")
-
-        # Generate image
-        result = await image_service.generate_social_media_image(
-            post_content=post.content_text,
-            platform=post.platform.value,
-        )
-
-        if not result.get("success"):
-            raise HTTPException(
-                status_code=500,
-                detail=result.get("error", "Image generation failed")
-            )
-
-        # Update post with image URL
         post.content_media_url = result["image_url"]
         db.commit()
         db.refresh(post)

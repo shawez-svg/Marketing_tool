@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # Anthropic (Optional)
     ANTHROPIC_API_KEY: str | None = None
 
-    # Ayrshare
-    AYRSHARE_API_KEY: str | None = None
+    # Late (Social Media API - getlate.dev)
+    LATE_API_KEY: str | None = None
 
     # JWT
     JWT_SECRET: str = "your-secret-key-change-in-production"

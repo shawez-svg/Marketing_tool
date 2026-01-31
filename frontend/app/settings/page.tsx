@@ -20,20 +20,24 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { PlatformIcon } from "@/components/SocialIcons";
 
 // Platform configuration with icons and colors
-const platformConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  linkedin: { label: "LinkedIn", color: "text-blue-600", bgColor: "bg-blue-100" },
-  twitter: { label: "Twitter/X", color: "text-sky-500", bgColor: "bg-sky-100" },
-  instagram: { label: "Instagram", color: "text-pink-600", bgColor: "bg-pink-100" },
-  facebook: { label: "Facebook", color: "text-blue-700", bgColor: "bg-blue-100" },
-  tiktok: { label: "TikTok", color: "text-gray-900", bgColor: "bg-gray-100" },
-  youtube: { label: "YouTube", color: "text-red-600", bgColor: "bg-red-100" },
-  pinterest: { label: "Pinterest", color: "text-red-500", bgColor: "bg-red-100" },
+const platformConfig: Record<string, { label: string; color: string; iconColor: string; bgColor: string }> = {
+  linkedin: { label: "LinkedIn", color: "text-blue-600", iconColor: "#0A66C2", bgColor: "bg-blue-50" },
+  twitter: { label: "Twitter/X", color: "text-gray-900", iconColor: "#000000", bgColor: "bg-gray-50" },
+  instagram: { label: "Instagram", color: "text-pink-600", iconColor: "#E4405F", bgColor: "bg-pink-50" },
+  facebook: { label: "Facebook", color: "text-blue-700", iconColor: "#1877F2", bgColor: "bg-blue-50" },
+  tiktok: { label: "TikTok", color: "text-gray-900", iconColor: "#000000", bgColor: "bg-gray-50" },
+  youtube: { label: "YouTube", color: "text-red-600", iconColor: "#FF0000", bgColor: "bg-red-50" },
+  threads: { label: "Threads", color: "text-gray-900", iconColor: "#000000", bgColor: "bg-gray-50" },
+  reddit: { label: "Reddit", color: "text-orange-600", iconColor: "#FF4500", bgColor: "bg-orange-50" },
+  pinterest: { label: "Pinterest", color: "text-red-500", iconColor: "#BD081C", bgColor: "bg-red-50" },
+  bluesky: { label: "Bluesky", color: "text-blue-500", iconColor: "#0085FF", bgColor: "bg-blue-50" },
 };
 
-// All supported platforms
-const allPlatforms = ["linkedin", "twitter", "instagram", "facebook", "tiktok"];
+// All supported platforms (Late supports 13, showing the main ones)
+const allPlatforms = ["linkedin", "twitter", "instagram", "facebook", "tiktok", "youtube", "threads", "reddit", "pinterest", "bluesky"];
 
 interface CompanyInfo {
   name: string;
@@ -224,8 +228,8 @@ export default function SettingsPage() {
     }
   };
 
-  const openAyrshareConnect = () => {
-    window.open(settingsApi.getAyrshareConnectUrl(), "_blank");
+  const openLateConnect = () => {
+    window.open(settingsApi.getLateConnectUrl(), "_blank");
   };
 
   const isConnected = (platform: string): boolean => {
@@ -569,7 +573,7 @@ export default function SettingsPage() {
                 Refresh
               </button>
               <button
-                onClick={openAyrshareConnect}
+                onClick={openLateConnect}
                 className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
               >
                 <ExternalLink className="mr-1 h-4 w-4" />
@@ -585,9 +589,9 @@ export default function SettingsPage() {
               <div className="ml-3">
                 <h3 className="font-medium text-blue-800">How to Connect Your Accounts</h3>
                 <p className="mt-1 text-sm text-blue-700">
-                  Click "Connect Accounts" to open Ayrshare's dashboard where you can securely
-                  link your social media accounts. Once connected, you'll be able to post
-                  content directly to those platforms.
+                  Click &quot;Connect Accounts&quot; to open the Late dashboard where you can securely
+                  link your social media accounts via OAuth. Late supports 13+ platforms
+                  and handles all authentication and token management.
                 </p>
               </div>
             </div>
@@ -617,11 +621,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Platform List */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {allPlatforms.map((platform) => {
               const config = platformConfig[platform] || {
                 label: platform,
                 color: "text-gray-600",
+                iconColor: "#6B7280",
                 bgColor: "bg-gray-100",
               };
               const connected = isConnected(platform);
@@ -629,34 +634,37 @@ export default function SettingsPage() {
               return (
                 <div
                   key={platform}
-                  className={`flex items-center justify-between rounded-lg border p-4 ${
-                    connected ? "border-green-200 bg-green-50" : "border-gray-200 bg-white"
+                  className={`flex items-center justify-between rounded-lg border p-4 transition-all ${
+                    connected
+                      ? "border-green-200 bg-green-50"
+                      : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
                   <div className="flex items-center">
                     <div
                       className={`flex h-10 w-10 items-center justify-center rounded-full ${config.bgColor}`}
                     >
-                      <span className={`text-lg font-bold ${config.color}`}>
-                        {config.label.charAt(0)}
-                      </span>
+                      <PlatformIcon
+                        platform={platform}
+                        className="h-5 w-5"
+                      />
                     </div>
                     <div className="ml-3">
                       <p className="font-medium text-gray-900">{config.label}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs text-gray-500">
                         {connected ? "Connected and ready" : "Not connected"}
                       </p>
                     </div>
                   </div>
                   <div>
                     {connected ? (
-                      <span className="flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-                        <CheckCircle className="mr-1 h-4 w-4" />
+                      <span className="flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                        <CheckCircle className="mr-1 h-3.5 w-3.5" />
                         Connected
                       </span>
                     ) : (
-                      <span className="flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-500">
-                        <XCircle className="mr-1 h-4 w-4" />
+                      <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                        <XCircle className="mr-1 h-3.5 w-3.5" />
                         Not Connected
                       </span>
                     )}

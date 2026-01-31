@@ -2,7 +2,7 @@
 
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { contentApi, Post } from "@/lib/content-api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -17,6 +17,9 @@ import {
   Image,
   Link,
   Sparkles,
+  Pencil,
+  RefreshCw,
+  Globe,
 } from "lucide-react";
 
 type PostStatus = "draft" | "approved" | "scheduled" | "posted" | "rejected" | "failed";
@@ -53,10 +56,7 @@ export default function ApprovalPage() {
   const [mediaUrlPost, setMediaUrlPost] = useState<Post | null>(null);
   const [mediaUrl, setMediaUrl] = useState("");
   const [generatingImage, setGeneratingImage] = useState(false);
-
-  useEffect(() => {
-    loadPosts();
-  }, []);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const loadPosts = async () => {
     setLoading(true);
@@ -71,6 +71,30 @@ export default function ApprovalPage() {
       setLoading(false);
     }
   };
+
+  // Silent background refresh (doesn't show loading spinner)
+  const refreshPosts = useCallback(async () => {
+    try {
+      const allPosts = await contentApi.getPosts();
+      setPosts(allPosts);
+    } catch {
+      // Silent fail for background refresh
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  // Auto-refresh every 30 seconds to catch scheduled→posted transitions
+  useEffect(() => {
+    const hasScheduledPosts = posts.some((p) => p.status === "scheduled");
+    if (!hasScheduledPosts) return;
+
+    const interval = setInterval(refreshPosts, 30000);
+    return () => clearInterval(interval);
+  }, [posts, refreshPosts]);
 
   const handleApprove = async (postId: string) => {
     try {
@@ -92,16 +116,24 @@ export default function ApprovalPage() {
 
   // State for scheduling loading
   const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduleTimezone, setScheduleTimezone] = useState(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
 
   const handleSchedule = async () => {
     if (!schedulingPost || !scheduleDate || !scheduleTime) return;
 
     setIsScheduling(true);
     try {
+      // Build an ISO string that represents the selected time in the chosen timezone
       const scheduledTime = new Date(`${scheduleDate}T${scheduleTime}`);
 
-      // Use the Ayrshare scheduling endpoint
-      const result = await contentApi.schedulePostToSocial(schedulingPost.id, scheduledTime);
+      // Use the Late scheduling endpoint with timezone
+      const result = await contentApi.schedulePostToSocial(
+        schedulingPost.id,
+        scheduledTime,
+        scheduleTimezone
+      );
 
       if (result.success) {
         // Refresh post data to get updated status
@@ -164,6 +196,7 @@ export default function ApprovalPage() {
     if (!mediaUrlPost) return;
 
     setGeneratingImage(true);
+    setImageError(null);
     try {
       const result = await contentApi.generateImageForPost(mediaUrlPost.id);
 
@@ -173,23 +206,20 @@ export default function ApprovalPage() {
         setPosts((prev) => prev.map((p) => (p.id === mediaUrlPost.id ? updated : p)));
         setMediaUrlPost(null);
         setMediaUrl("");
+        setImageError(null);
         setPostingMessage({
           type: "success",
           message: "AI image generated! You can now post to Instagram.",
         });
         setTimeout(() => setPostingMessage(null), 5000);
       } else {
-        setPostingMessage({
-          type: "error",
-          message: result.error || "Failed to generate image",
-        });
+        const errorMsg = result.error || "Failed to generate image";
+        setImageError(errorMsg);
       }
     } catch (err: any) {
       console.error("Failed to generate AI image:", err);
-      setPostingMessage({
-        type: "error",
-        message: err.response?.data?.detail || "Failed to generate AI image",
-      });
+      const errorMsg = err.response?.data?.detail || "Failed to generate AI image. Check your OpenAI API key.";
+      setImageError(errorMsg);
     } finally {
       setGeneratingImage(false);
     }
@@ -242,6 +272,26 @@ export default function ApprovalPage() {
     }
   };
 
+  const handleRetry = async (post: Post) => {
+    try {
+      // Reset to approved first
+      const updated = await contentApi.updatePost(post.id, { status: "approved" });
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? updated : p)));
+      setPostingMessage({
+        type: "success",
+        message: "Post reset to approved. You can now post or schedule it.",
+      });
+      setTimeout(() => setPostingMessage(null), 3000);
+    } catch (err) {
+      console.error("Failed to retry post:", err);
+      setPostingMessage({
+        type: "error",
+        message: "Failed to reset post status",
+      });
+      setTimeout(() => setPostingMessage(null), 5000);
+    }
+  };
+
   const handleCancelSchedule = async (postId: string) => {
     try {
       // Use the cancel schedule API
@@ -267,6 +317,7 @@ export default function ApprovalPage() {
     { value: "scheduled", label: "Scheduled", count: posts.filter((p) => p.status === "scheduled").length },
     { value: "posted", label: "Posted", count: posts.filter((p) => p.status === "posted").length },
     { value: "rejected", label: "Rejected", count: posts.filter((p) => p.status === "rejected").length },
+    { value: "failed", label: "Failed", count: posts.filter((p) => p.status === "failed").length },
   ];
 
   const filteredPosts =
@@ -337,18 +388,28 @@ export default function ApprovalPage() {
             <h1 className="text-3xl font-bold text-gray-900">Approval & Posting</h1>
             <p className="mt-2 text-gray-600">Review, approve, and schedule your content</p>
           </div>
-          <button
-            onClick={() => router.push("/content")}
-            className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            <span>Back to Content</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={refreshPosts}
+              className="flex items-center space-x-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              title="Refresh post statuses"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={() => router.push("/content")}
+              className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            >
+              <span>Back to Content</span>
+            </button>
+          </div>
         </div>
 
         {/* Posting Message Toast */}
         {postingMessage && (
           <div
-            className={`fixed right-4 top-4 z-50 rounded-lg p-4 shadow-lg ${
+            className={`fixed right-4 top-4 z-[60] rounded-lg p-4 shadow-lg ${
               postingMessage.type === "success"
                 ? "bg-green-100 text-green-800"
                 : "bg-red-100 text-red-800"
@@ -372,7 +433,7 @@ export default function ApprovalPage() {
         )}
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           <div className="rounded-lg border bg-white p-4 text-center">
             <p className="text-2xl font-bold text-gray-600">
               {posts.filter((p) => p.status === "draft").length}
@@ -402,6 +463,12 @@ export default function ApprovalPage() {
               {posts.filter((p) => p.status === "rejected").length}
             </p>
             <p className="text-sm text-gray-500">Rejected</p>
+          </div>
+          <div className="rounded-lg border bg-white p-4 text-center">
+            <p className="text-2xl font-bold text-orange-600">
+              {posts.filter((p) => p.status === "failed").length}
+            </p>
+            <p className="text-sm text-gray-500">Failed</p>
           </div>
         </div>
 
@@ -494,24 +561,27 @@ export default function ApprovalPage() {
 
                   {/* Instagram Media Warning */}
                   {post.platform.toLowerCase() === "instagram" && !post.content_media_url && (
-                    <div className="mb-3 flex items-center rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 mr-2 flex-shrink-0" />
-                      <span className="text-sm text-amber-800">
-                        Instagram requires an image or video.{" "}
-                        <button
-                          onClick={() => setMediaUrlPost(post)}
-                          className="underline font-medium hover:text-amber-900"
-                        >
-                          Add media URL
-                        </button>
-                      </span>
+                    <div className="mb-3 flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                      <div className="flex items-center">
+                        <AlertCircle className="h-4 w-4 text-amber-600 mr-2 flex-shrink-0" />
+                        <span className="text-sm text-amber-800">
+                          Instagram requires an image or video.
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setMediaUrlPost(post)}
+                        className="ml-3 flex items-center rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-pink-700"
+                      >
+                        <Image className="h-3.5 w-3.5 mr-1" />
+                        Add Media
+                      </button>
                     </div>
                   )}
 
                   {/* Media Preview */}
                   {post.content_media_url && (
                     <div className="mb-3 flex items-center text-sm text-gray-600">
-                      <Image className="h-4 w-4 mr-2" />
+                      <Image className="h-4 w-4 mr-2 flex-shrink-0" />
                       <a
                         href={post.content_media_url}
                         target="_blank"
@@ -520,6 +590,18 @@ export default function ApprovalPage() {
                       >
                         {post.content_media_url}
                       </a>
+                      {post.status !== "posted" && (
+                        <button
+                          onClick={() => {
+                            setMediaUrl(post.content_media_url || "");
+                            setMediaUrlPost(post);
+                          }}
+                          className="ml-2 flex items-center rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 flex-shrink-0"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Change
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -635,6 +717,44 @@ export default function ApprovalPage() {
                       </button>
                     </div>
                   )}
+
+                  {post.status === "failed" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+                        <AlertCircle className="h-4 w-4 text-red-500 mr-2 flex-shrink-0" />
+                        <span className="text-sm text-red-700">
+                          This post failed to publish. You can retry or reschedule it.
+                        </span>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleRetry(post)}
+                          className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span>Retry</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleRetry(post).then(() => {
+                              setSchedulingPost(post);
+                            });
+                          }}
+                          className="flex items-center space-x-2 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <Calendar className="h-4 w-4" />
+                          <span>Reschedule</span>
+                        </button>
+                        <button
+                          onClick={() => handleReject(post.id)}
+                          className="flex items-center space-x-2 rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4" />
+                          <span>Discard</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -684,6 +804,23 @@ export default function ApprovalPage() {
                     onChange={(e) => setScheduleTime(e.target.value)}
                     className="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:outline-none"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 flex items-center text-sm font-medium text-gray-700">
+                    <Globe className="h-4 w-4 mr-1" />
+                    Timezone
+                  </label>
+                  <select
+                    value={scheduleTimezone}
+                    onChange={(e) => setScheduleTimezone(e.target.value)}
+                    className="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:outline-none text-sm"
+                  >
+                    {Intl.supportedValuesOf("timeZone").map((tz) => (
+                      <option key={tz} value={tz}>
+                        {tz.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 {schedulingPost.suggested_time && (
                   <p className="text-xs text-gray-500">
@@ -742,7 +879,9 @@ export default function ApprovalPage() {
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
               <div className="flex items-center mb-4">
                 <Image className="h-6 w-6 text-pink-600 mr-2" />
-                <h3 className="text-lg font-semibold">Add Media for Instagram</h3>
+                <h3 className="text-lg font-semibold">
+                  {mediaUrlPost.content_media_url ? "Change Media" : "Add Media"} for Instagram
+                </h3>
               </div>
 
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -758,18 +897,19 @@ export default function ApprovalPage() {
 
               {/* Option 1: Generate AI Image */}
               <div className="mb-4 p-4 border border-purple-200 rounded-lg bg-purple-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Sparkles className="h-5 w-5 text-purple-600 mr-2" />
-                    <div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center min-w-0">
+                    <Sparkles className="h-5 w-5 text-purple-600 mr-2 flex-shrink-0" />
+                    <div className="min-w-0">
                       <p className="font-medium text-purple-900">Generate AI Image</p>
                       <p className="text-xs text-purple-700">Create an image using DALL-E based on your post content</p>
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={handleGenerateAIImage}
                     disabled={generatingImage}
-                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700 disabled:opacity-50 flex items-center"
+                    className="rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 flex items-center flex-shrink-0 cursor-pointer shadow-sm hover:shadow-md transition-all"
                   >
                     {generatingImage ? (
                       <>
@@ -785,6 +925,14 @@ export default function ApprovalPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Inline error message for image generation */}
+              {imageError && (
+                <div className="mb-4 flex items-start rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm text-red-700">{imageError}</span>
+                </div>
+              )}
 
               <div className="flex items-center my-4">
                 <div className="flex-1 border-t border-gray-200"></div>
@@ -818,18 +966,24 @@ export default function ApprovalPage() {
                   onClick={() => {
                     setMediaUrlPost(null);
                     setMediaUrl("");
+                    setImageError(null);
                   }}
                   disabled={generatingImage}
-                  className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddMediaUrl}
                   disabled={!mediaUrl || generatingImage}
-                  className="rounded-lg bg-pink-600 px-4 py-2 text-sm text-white hover:bg-pink-700 disabled:opacity-50"
+                  className={`flex items-center rounded-lg px-5 py-2 text-sm font-medium ${
+                    !mediaUrl || generatingImage
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
-                  Use URL
+                  <Link className="h-4 w-4 mr-1.5" />
+                  Add URL
                 </button>
               </div>
             </div>

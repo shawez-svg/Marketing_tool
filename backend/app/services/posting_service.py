@@ -1,11 +1,13 @@
 """
 Social Media Posting Service
 
-Handles posting content to social media platforms via Ayrshare API.
-Supports LinkedIn, Twitter/X, Instagram, Facebook, and TikTok.
+Handles posting content to social media platforms via Late API (getlate.dev).
+Supports LinkedIn, Twitter/X, Instagram, Facebook, TikTok, YouTube, Threads,
+Reddit, Pinterest, and Bluesky.
 """
 
 import httpx
+import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from uuid import UUID
@@ -14,23 +16,26 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.post import Post, PostStatus, Platform
 
+logger = logging.getLogger(__name__)
+
 
 class PostingService:
-    """Service for posting content to social media via Ayrshare."""
+    """Service for posting content to social media via Late API."""
 
     def __init__(self):
-        self.api_key = getattr(settings, "AYRSHARE_API_KEY", None)
-        self.base_url = "https://api.ayrshare.com/api"
+        self.api_key = getattr(settings, "LATE_API_KEY", None)
+        self.base_url = "https://getlate.dev/api/v1"
+        self._accounts_cache: Optional[List[Dict[str, Any]]] = None
 
     def _get_headers(self) -> Dict[str, str]:
-        """Get authorization headers for Ayrshare API."""
+        """Get authorization headers for Late API."""
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
-    def _platform_to_ayrshare(self, platform: Platform) -> str:
-        """Convert our Platform enum to Ayrshare platform names."""
+    def _platform_to_late(self, platform: Platform) -> str:
+        """Convert our Platform enum to Late platform names."""
         mapping = {
             Platform.LINKEDIN: "linkedin",
             Platform.TWITTER: "twitter",
@@ -39,6 +44,41 @@ class PostingService:
             Platform.TIKTOK: "tiktok",
         }
         return mapping.get(platform, "")
+
+    async def _fetch_accounts(self) -> List[Dict[str, Any]]:
+        """Fetch connected accounts from Late API and cache them."""
+        if self._accounts_cache is not None:
+            return self._accounts_cache
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/accounts",
+                    headers=self._get_headers(),
+                    timeout=30.0,
+                )
+                logger.info(f"Late API GET /accounts - status: {response.status_code}")
+                if response.status_code == 200:
+                    data = response.json()
+                    accounts_list = data.get("accounts", []) if isinstance(data, dict) else data
+                    self._accounts_cache = accounts_list
+                    logger.info(f"Late API accounts found: {len(accounts_list)} accounts")
+                    for acc in accounts_list:
+                        logger.info(f"  Account: platform={acc.get('platform')}, id={acc.get('_id')}, active={acc.get('isActive')}, username={acc.get('username')}")
+                    return accounts_list
+                else:
+                    logger.error(f"Late API accounts fetch failed: {response.text}")
+        except Exception as e:
+            logger.error(f"Late API accounts fetch error: {e}")
+        return []
+
+    async def _get_account_id_for_platform(self, platform_name: str) -> Optional[str]:
+        """Get the Late account ID for a given platform name."""
+        accounts = await self._fetch_accounts()
+        for acc in accounts:
+            if acc.get("platform", "").lower() == platform_name.lower() and acc.get("isActive", True):
+                return acc.get("_id")
+        return None
 
     async def post_now(
         self,
@@ -64,75 +104,93 @@ class PostingService:
 
         # Check if API key is configured
         if not self.api_key:
-            # Simulate posting for development/testing
             return await self._simulate_posting(db, post)
 
-        # Prepare Ayrshare request
-        platform_name = self._platform_to_ayrshare(post.platform)
+        platform_name = self._platform_to_late(post.platform)
         if not platform_name:
             raise ValueError(f"Unsupported platform: {post.platform}")
 
-        payload = {
-            "post": post.content_text,
-            "platforms": [platform_name],
+        # Instagram requires media
+        if post.platform == Platform.INSTAGRAM and not post.content_media_url:
+            post.status = PostStatus.FAILED
+            db.commit()
+            return {
+                "success": False,
+                "post_id": str(post.id),
+                "platform": platform_name,
+                "error": "Instagram requires an image or video. Please add media to this post before publishing.",
+                "requires_media": True,
+            }
+
+        # Look up the connected account ID for this platform
+        account_id = await self._get_account_id_for_platform(platform_name)
+        if not account_id:
+            return {
+                "success": False,
+                "post_id": str(post.id),
+                "platform": platform_name,
+                "error": f"No {platform_name} account connected. Please connect your {platform_name} account in the Late dashboard (https://app.getlate.dev/accounts).",
+            }
+
+        # Build Late API payload
+        payload: Dict[str, Any] = {
+            "content": post.content_text,
+            "platforms": [{"platform": platform_name, "accountId": account_id}],
+            "publishNow": True,
+            "isDraft": False,
         }
 
         # Add media if present
         if post.content_media_url:
-            payload["mediaUrls"] = [post.content_media_url]
+            media_url = post.content_media_url
+            # Detect media type from URL
+            media_type = "image"
+            lower_url = media_url.lower()
+            if any(ext in lower_url for ext in [".mp4", ".mov", ".avi", ".webm"]):
+                media_type = "video"
+            payload["mediaItems"] = [{"type": media_type, "url": media_url}]
 
-        # Handle platform-specific options
-        if post.platform == Platform.INSTAGRAM:
-            # Instagram requires media for ALL posts (feed and stories)
-            if not post.content_media_url:
-                post.status = PostStatus.FAILED
-                db.commit()
-                return {
-                    "success": False,
-                    "post_id": str(post.id),
-                    "platform": platform_name,
-                    "error": "Instagram requires an image or video. Please add media to this post before publishing.",
-                    "requires_media": True,
-                }
+        logger.info(f"Late API POST /posts - Platform: {platform_name}, AccountID: {account_id}")
+        logger.info(f"Late API payload: {payload}")
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/post",
+                    f"{self.base_url}/posts",
                     json=payload,
                     headers=self._get_headers(),
                     timeout=30.0,
                 )
 
                 result = response.json()
+                logger.info(f"Late API response status: {response.status_code}")
+                logger.info(f"Late API response body: {result}")
 
-                if response.status_code == 200 and result.get("status") != "error":
-                    # Success - update post status
+                if response.status_code in (200, 201):
+                    post_data = result.get("post", {})
                     post.status = PostStatus.POSTED
                     post.posted_at = datetime.utcnow()
-                    post.platform_post_id = result.get("id")
+                    post.platform_post_id = post_data.get("_id")
                     db.commit()
 
                     return {
                         "success": True,
                         "post_id": str(post.id),
                         "platform": platform_name,
-                        "platform_post_id": result.get("id"),
+                        "platform_post_id": post_data.get("_id"),
                         "message": "Posted successfully",
                     }
                 else:
-                    # Error - update status to failed
                     post.status = PostStatus.FAILED
                     db.commit()
 
-                    # Get detailed error message
-                    error_msg = result.get("message") or result.get("error") or result.get("errors")
-                    if isinstance(error_msg, list):
-                        error_msg = "; ".join(str(e) for e in error_msg)
-                    if isinstance(error_msg, dict):
-                        error_msg = str(error_msg)
+                    error_msg = result.get("message") or result.get("error") or ""
                     if not error_msg:
-                        error_msg = f"Posting failed (status {response.status_code}). Please ensure your {platform_name} account is connected in Ayrshare dashboard."
+                        error_msg = f"Posting failed (status {response.status_code}). Please ensure your {platform_name} account is connected in Late dashboard."
+                    else:
+                        error_msg = f"{error_msg} (HTTP {response.status_code})"
+
+                    logger.error(f"Late API posting failed: {error_msg}")
 
                     return {
                         "success": False,
@@ -142,14 +200,16 @@ class PostingService:
                     }
 
         except httpx.TimeoutException:
+            logger.error(f"Late API timeout for post {post.id}")
             post.status = PostStatus.FAILED
             db.commit()
             return {
                 "success": False,
                 "post_id": str(post.id),
-                "error": "Request timed out",
+                "error": "Request timed out. The Late API did not respond in time.",
             }
         except Exception as e:
+            logger.error(f"Late API exception for post {post.id}: {e}")
             post.status = PostStatus.FAILED
             db.commit()
             return {
@@ -162,7 +222,6 @@ class PostingService:
         """
         Simulate posting for development when API key is not configured.
         """
-        # Update post status to simulate successful posting
         post.status = PostStatus.POSTED
         post.posted_at = datetime.utcnow()
         post.platform_post_id = f"simulated_{post.id}"
@@ -182,14 +241,16 @@ class PostingService:
         db: Session,
         post_id: UUID,
         scheduled_time: datetime,
+        timezone: str = "UTC",
     ) -> Dict[str, Any]:
         """
-        Schedule a post for future publishing via Ayrshare.
+        Schedule a post for future publishing via Late.
 
         Args:
             db: Database session
             post_id: Post ID to schedule
             scheduled_time: When to post
+            timezone: User's timezone (IANA format, e.g. 'America/New_York')
 
         Returns:
             dict with scheduling result
@@ -201,13 +262,10 @@ class PostingService:
         if post.status == PostStatus.POSTED:
             raise ValueError("Post already published")
 
-        # Check if API key is configured
         if not self.api_key:
-            # Update locally without sending to Ayrshare
             post.scheduled_time = scheduled_time
             post.status = PostStatus.SCHEDULED
             db.commit()
-
             return {
                 "success": True,
                 "post_id": str(post.id),
@@ -216,11 +274,10 @@ class PostingService:
                 "simulated": True,
             }
 
-        platform_name = self._platform_to_ayrshare(post.platform)
+        platform_name = self._platform_to_late(post.platform)
         if not platform_name:
             raise ValueError(f"Unsupported platform: {post.platform}")
 
-        # Instagram requires media
         if post.platform == Platform.INSTAGRAM and not post.content_media_url:
             return {
                 "success": False,
@@ -230,38 +287,55 @@ class PostingService:
                 "requires_media": True,
             }
 
-        # Format time for Ayrshare (ISO 8601 with timezone)
-        # Ayrshare expects UTC time
-        if scheduled_time.tzinfo is None:
-            # Assume local time, convert to UTC format
-            schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        else:
-            schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Look up the connected account ID for this platform
+        account_id = await self._get_account_id_for_platform(platform_name)
+        if not account_id:
+            return {
+                "success": False,
+                "post_id": str(post.id),
+                "platform": platform_name,
+                "error": f"No {platform_name} account connected. Please connect your {platform_name} account in the Late dashboard (https://app.getlate.dev/accounts).",
+            }
 
-        payload = {
-            "post": post.content_text,
-            "platforms": [platform_name],
-            "scheduleDate": schedule_date,
+        schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        payload: Dict[str, Any] = {
+            "content": post.content_text,
+            "platforms": [{"platform": platform_name, "accountId": account_id}],
+            "scheduledFor": schedule_date,
+            "timezone": timezone or "UTC",
+            "isDraft": False,
         }
 
         if post.content_media_url:
-            payload["mediaUrls"] = [post.content_media_url]
+            media_url = post.content_media_url
+            media_type = "image"
+            lower_url = media_url.lower()
+            if any(ext in lower_url for ext in [".mp4", ".mov", ".avi", ".webm"]):
+                media_type = "video"
+            payload["mediaItems"] = [{"type": media_type, "url": media_url}]
+
+        logger.info(f"Late API POST /posts (schedule) - Platform: {platform_name}, AccountID: {account_id}")
+        logger.info(f"Late API schedule payload: {payload}")
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/post",
+                    f"{self.base_url}/posts",
                     json=payload,
                     headers=self._get_headers(),
                     timeout=30.0,
                 )
 
                 result = response.json()
+                logger.info(f"Late API schedule response status: {response.status_code}")
+                logger.info(f"Late API schedule response body: {result}")
 
-                if response.status_code == 200 and result.get("status") != "error":
+                if response.status_code in (200, 201):
+                    post_data = result.get("post", {})
                     post.status = PostStatus.SCHEDULED
                     post.scheduled_time = scheduled_time
-                    post.platform_post_id = result.get("id")
+                    post.platform_post_id = post_data.get("_id")
                     db.commit()
 
                     return {
@@ -269,18 +343,17 @@ class PostingService:
                         "post_id": str(post.id),
                         "platform": platform_name,
                         "scheduled_time": schedule_date,
-                        "platform_post_id": result.get("id"),
-                        "message": "Scheduled successfully via Ayrshare",
+                        "platform_post_id": post_data.get("_id"),
+                        "message": "Scheduled successfully via Late",
                     }
                 else:
-                    # Get detailed error message
-                    error_msg = result.get("message") or result.get("error") or result.get("errors")
-                    if isinstance(error_msg, list):
-                        error_msg = "; ".join(str(e) for e in error_msg)
-                    if isinstance(error_msg, dict):
-                        error_msg = str(error_msg)
+                    error_msg = result.get("message") or result.get("error") or ""
                     if not error_msg:
                         error_msg = f"Scheduling failed (status {response.status_code})"
+                    else:
+                        error_msg = f"{error_msg} (HTTP {response.status_code})"
+
+                    logger.error(f"Late API scheduling failed: {error_msg}")
 
                     return {
                         "success": False,
@@ -302,7 +375,7 @@ class PostingService:
         post_id: UUID,
     ) -> Dict[str, Any]:
         """
-        Delete a scheduled post from Ayrshare.
+        Delete a scheduled post from Late.
 
         Args:
             db: Database session
@@ -316,7 +389,6 @@ class PostingService:
             raise ValueError("Post not found")
 
         if not post.platform_post_id:
-            # No platform post ID, just update local status
             post.status = PostStatus.DRAFT
             post.scheduled_time = None
             db.commit()
@@ -337,7 +409,7 @@ class PostingService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.base_url}/post/{post.platform_post_id}",
+                    f"{self.base_url}/posts/{post.platform_post_id}",
                     headers=self._get_headers(),
                     timeout=30.0,
                 )
@@ -393,8 +465,7 @@ class PostingService:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/analytics/post",
-                    params={"id": post.platform_post_id},
+                    f"{self.base_url}/posts/{post.platform_post_id}",
                     headers=self._get_headers(),
                     timeout=30.0,
                 )
@@ -420,7 +491,7 @@ class PostingService:
 
     async def get_user_social_accounts(self) -> Dict[str, Any]:
         """
-        Get connected social media accounts from Ayrshare.
+        Get connected social media accounts from Late.
 
         Returns:
             dict with connected accounts
@@ -428,28 +499,26 @@ class PostingService:
         if not self.api_key:
             return {
                 "accounts": [],
-                "message": "No API key configured - connect accounts at ayrshare.com",
+                "message": "No API key configured - connect accounts at getlate.dev",
             }
 
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_url}/user",
-                    headers=self._get_headers(),
-                    timeout=30.0,
-                )
+        # Clear cache so we get fresh data
+        self._accounts_cache = None
 
-                if response.status_code == 200:
-                    data = response.json()
-                    return {
-                        "accounts": data.get("activeSocialAccounts", []),
-                        "email": data.get("email"),
-                    }
-                else:
-                    return {
-                        "accounts": [],
-                        "error": response.json().get("message"),
-                    }
+        try:
+            accounts_list = await self._fetch_accounts()
+
+            # Extract platform names from connected accounts
+            connected_platforms = []
+            for acc in accounts_list:
+                platform = acc.get("platform", "")
+                if platform and acc.get("isActive", True):
+                    connected_platforms.append(platform)
+
+            return {
+                "accounts": connected_platforms,
+                "details": accounts_list,
+            }
 
         except Exception as e:
             return {

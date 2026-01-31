@@ -165,7 +165,7 @@ export const contentApi = {
   },
 
   // ============================================================
-  // POSTING METHODS - Actual social media posting via Ayrshare
+  // POSTING METHODS - Actual social media posting via Late
   // ============================================================
 
   /**
@@ -177,11 +177,12 @@ export const contentApi = {
   },
 
   /**
-   * Schedule a post to be published at a specific time via Ayrshare
+   * Schedule a post to be published at a specific time via Late
    */
-  async schedulePostToSocial(postId: string, scheduledTime: Date): Promise<PostingResult> {
+  async schedulePostToSocial(postId: string, scheduledTime: Date, timezone?: string): Promise<PostingResult> {
     const response = await api.post<PostingResult>(`/api/content/${postId}/schedule-post`, {
       scheduled_time: scheduledTime.toISOString(),
+      timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     return response.data;
   },

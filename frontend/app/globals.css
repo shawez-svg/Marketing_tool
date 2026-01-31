@@ -188,10 +188,30 @@ button {
   background-color: #b91c1c !important;
 }
 
+/* Preserve purple button backgrounds */
+.bg-purple-600 {
+  background-color: #9333ea !important;
+}
+
+.hover\:bg-purple-700:hover {
+  background-color: #7e22ce !important;
+}
+
+/* Preserve pink button backgrounds */
+.bg-pink-600 {
+  background-color: #db2777 !important;
+}
+
+.hover\:bg-pink-700:hover {
+  background-color: #be185d !important;
+}
+
 /* Preserve button text colors */
 button.bg-blue-600,
 button.bg-green-600,
-button.bg-red-600 {
+button.bg-red-600,
+button.bg-purple-600,
+button.bg-pink-600 {
   color: #ffffff !important;
 }
 

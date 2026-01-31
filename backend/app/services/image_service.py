@@ -12,7 +12,7 @@ class ImageService:
     """Service for generating images using DALL-E"""
 
     def __init__(self):
-        self.client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     async def generate_image(
         self,
@@ -34,7 +34,7 @@ class ImageService:
             dict with image URL and revised prompt
         """
         try:
-            response = self.client.images.generate(
+            response = await self.client.images.generate(
                 model="dall-e-3",
                 prompt=prompt,
                 size=size,

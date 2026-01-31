@@ -46,8 +46,8 @@ export const settingsApi = {
     };
   },
 
-  // Get Ayrshare dashboard URL for connecting accounts
-  getAyrshareConnectUrl: (): string => {
-    return "https://app.ayrshare.com/social-accounts";
+  // Get Late dashboard URL for connecting social accounts
+  getLateConnectUrl: (): string => {
+    return "https://app.getlate.dev/accounts";
   },
 };

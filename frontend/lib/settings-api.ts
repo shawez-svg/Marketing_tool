@@ -48,6 +48,6 @@ export const settingsApi = {
 
   // Get Late dashboard URL for connecting social accounts
   getLateConnectUrl: (): string => {
-    return "https://app.getlate.dev/accounts";
+    return "https://getlate.dev/signin";
   },
 };

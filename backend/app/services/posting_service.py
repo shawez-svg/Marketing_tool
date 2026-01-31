@@ -294,7 +294,7 @@ class PostingService:
                 "success": False,
                 "post_id": str(post.id),
                 "platform": platform_name,
-                "error": f"No {platform_name} account connected. Please connect your {platform_name} account in the Late dashboard (https://app.getlate.dev/accounts).",
+                "error": f"No {platform_name} account connected. Please connect your {platform_name} account in the Late dashboard (https://getlate.dev/signin).",
             }
 
         schedule_date = scheduled_time.strftime("%Y-%m-%dT%H:%M:%SZ")

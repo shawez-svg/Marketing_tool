@@ -523,12 +523,12 @@ export default function ApprovalPage() {
           ))}
         </div>
 
-        {/* Content Queue */}
-        <div className="space-y-4">
+        {/* Content Queue - Two column grid like content page */}
+        <div className="grid gap-6 md:grid-cols-2">
           {filteredPosts.map((post) => (
             <div
               key={post.id}
-              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -578,30 +578,41 @@ export default function ApprovalPage() {
                     </div>
                   )}
 
-                  {/* Media Preview */}
+                  {/* Media Preview - Show actual image thumbnail */}
                   {post.content_media_url && (
-                    <div className="mb-3 flex items-center text-sm text-gray-600">
-                      <Image className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <a
-                        href={post.content_media_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline truncate max-w-xs"
-                      >
-                        {post.content_media_url}
-                      </a>
-                      {post.status !== "posted" && (
-                        <button
-                          onClick={() => {
-                            setMediaUrl(post.content_media_url || "");
-                            setMediaUrlPost(post);
-                          }}
-                          className="ml-2 flex items-center rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 flex-shrink-0"
+                    <div className="mb-3">
+                      <div className="relative inline-block">
+                        <a
+                          href={post.content_media_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
                         >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          Change
-                        </button>
-                      )}
+                          <img
+                            src={post.content_media_url}
+                            alt="Post media"
+                            className="h-32 w-auto max-w-[200px] rounded-lg border border-gray-200 object-cover hover:opacity-90 transition-opacity"
+                            onError={(e) => {
+                              // Fallback to link if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.parentElement!.innerHTML = `<span class="flex items-center text-sm text-blue-600 hover:underline"><svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>View media</span>`;
+                            }}
+                          />
+                        </a>
+                        {post.status !== "posted" && (
+                          <button
+                            onClick={() => {
+                              setMediaUrl(post.content_media_url || "");
+                              setMediaUrlPost(post);
+                            }}
+                            className="absolute top-1 right-1 flex items-center rounded bg-white/90 border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-white shadow-sm"
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Change
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 
